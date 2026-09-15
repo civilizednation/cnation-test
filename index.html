@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Slay the Spire 3D Showcase</title>
+<style>
+body, html {
+margin: 0;
+padding: 0;
+width: 100%;
+height: 100%;
+overflow: hidden;
+background-color: #0b0c10;
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+user-select: none;
+-webkit-user-select: none;
+}
+#webgl-container {
+width: 100%;
+height: 100%;
+position: absolute;
+left: 0;
+top: 0;
+}
+#header-title {
+position: absolute;
+top: 18px;
+left: 20px;
+color: #f1f1f1;
+font-size: 17px;
+font-weight: 700;
+letter-spacing: 0.5px;
+text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+pointer-events: none;
+}
+#char-info {
+position: absolute;
+top: 45px;
+left: 20px;
+color: #66fcf1;
+font-size: 13px;
+pointer-events: none;
+}
+#nav-bar {
+position: absolute;
+bottom: 24px;
+left: 50%;
+transform: translateX(-50%);
+display: flex;
+gap: 10px;
+background: rgba(20, 24, 33, 0.85);
+padding: 6px 12px;
+border-radius: 30px;
+border: 1px solid rgba(102, 252, 241, 0.25);
+backdrop-filter: blur(8px);
+-webkit-backdrop-filter: blur(8px);
+z-index: 100;
+}
+.char-btn {
+background: transparent;
+border: none;
+color: #c5c6c7;
+padding: 8px 14px;
+font-size: 13px;
+font-weight: 600;
+border-radius: 20px;
+cursor: pointer;
+transition: all 0.2s ease;
+}
+.char-btn.active {
+background: #45a29e;
+color: #ffffff;
+box-shadow: 0 0 10px rgba(69, 162, 158, 0.6);
+}
+#loading {
+position: absolute;
+width: 100%;
+height: 100%;
+background: #0b0c10;
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+color: #66fcf1;
+font-size: 14px;
+z-index: 200;
+}
+.spinner {
+width: 38px;
+height: 38px;
+border: 3px solid rgba(102, 252, 241, 0.2);
+border-top-color: #66fcf1;
+border-radius: 50%;
+animation: spin 0.8s linear infinite;
+margin-bottom: 12px;
+}
+@keyframes spin {
+to { transform: rotate(360deg); }
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+<div id="loading">
+<div class="spinner"></div>
+<span>3D 뷰어 엔진 로딩 중...</span>
+</div>
+
+<div id="header-title">SLAY THE SPIRE 3D</div>
+<div id="char-info">디펙트 (The Defect)</div>
+
+<div id="webgl-container"></div>
+
+<div id="nav-bar">
+<button class="char-btn" onclick="selectCharacter('ironclad')">아이언클래드</button>
+<button class="char-btn" onclick="selectCharacter('silent')">사일런트</button>
+<button class="char-btn active" onclick="selectCharacter('defect')">디펙트</button>
+<button class="char-btn" onclick="selectCharacter('watcher')">와쳐</button>
+</div>
+
+<script>
+let scene, camera, renderer, controls;
+const charGroups = {};
+let currentKey = 'defect';
+const orbs = [];
+let defectCore = null;
+
+function init() {
+const container = document.getElementById('webgl-container');
+scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0b0c10, 0.04);
+
+camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 2.0, 4.8);
+
+renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.maxPolarAngle = Math.PI / 2 + 0.05;
+controls.minDistance = 2.0;
+controls.maxDistance = 8.0;
+controls.target.set(0, 1.3, 0);
+
+// 조명 설정
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xfff5ea, 1.1);
+dirLight.position.set(3, 5, 4);
+dirLight.castShadow = true;
+scene.add(dirLight);
+
+const rimLight = new THREE.DirectionalLight(0x45a29e, 0.8);
+rimLight.position.set(-3, 3, -3);
+scene.add(rimLight);
+
+// 바닥 룬 링
+buildFloor();
+
+// 4개 캐릭터 생성
+buildDefect();
+buildIronclad();
+buildSilent();
+buildWatcher();
+
+// 초기 노출 캐릭터 설정
+for (let key in charGroups) {
+charGroups[key].visible = (key === currentKey);
+}
+
+document.getElementById('loading').style.display = 'none';
+window.addEventListener('resize', onResize);
+animate();
+}
+
+function buildFloor() {
+const floorGeo = new THREE.CylinderGeometry(2.0, 2.0, 0.08, 32);
+const floorMat = new THREE.MeshStandardMaterial({
+color: 0x151922,
+roughness: 0.85,
+metalness: 0.15
+});
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.position.y = -0.04;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const ringGeo = new THREE.RingGeometry(1.65, 1.78, 32);
+const ringMat = new THREE.MeshBasicMaterial({
+color: 0x66fcf1,
+side: THREE.DoubleSide,
+transparent: true,
+opacity: 0.45
+});
+const ring = new THREE.Mesh(ringGeo, ringMat);
+ring.rotation.x = -Math.PI / 2;
+ring.position.y = 0.002;
+scene.add(ring);
+}
+
+// 1. 디펙트 모델
+function buildDefect() {
+const group = new THREE.Group();
+const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd9c8a9, roughness: 0.5, metalness: 0.2, flatShading: true });
+const jointMat = new THREE.MeshStandardMaterial({ color: 0x2e2f38, roughness: 0.4, metalness: 0.8 });
+
+// 골반 & 다리
+const pelvis = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.12, 0.2, 6), jointMat);
+pelvis.position.y = 0.95;
+group.add(pelvis);
+
+function makeLeg(x) {
+const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.4, 6), bodyMat);
+upper.position.set(x, 0.72, 0);
+const knee = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), jointMat);
+knee.position.set(x, 0.5, 0);
+const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.45, 6), bodyMat);
+lower.position.set(x, 0.25, 0);
+const foot = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.2), bodyMat);
+foot.position.set(x, 0.03, 0.04);
+group.add(upper, knee, lower, foot);
+}
+makeLeg(-0.2);
+makeLeg(0.2);
+
+// 척추 & 흉갑
+const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.4, 6), jointMat);
+spine.position.y = 1.25;
+group.add(spine);
+
+const chestLeft = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.35, 0.25), bodyMat);
+chestLeft.position.set(-0.16, 1.4, 0);
+const chestRight = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.35, 0.25), bodyMat);
+chestRight.position.set(0.16, 1.4, 0);
+group.add(chestLeft, chestRight);
+
+// 에너지 코어 (발광)
+const coreGeo = new THREE.SphereGeometry(0.13, 16, 16);
+const coreMat = new THREE.MeshStandardMaterial({
+color: 0x00ffff,
+emissive: 0x00e1d9,
+emissiveIntensity: 1.8,
+roughness: 0.1
+});
+defectCore = new THREE.Mesh(coreGeo, coreMat);
+defectCore.position.set(0, 1.38, 0.02);
+group.add(defectCore);
+
+// 목 & 머리
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.15, 6), jointMat);
+neck.position.y = 1.62;
+group.add(neck);
+
+const head = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.28, 6), bodyMat);
+head.position.y = 1.8;
+const hornLeft = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.28, 5), bodyMat);
+hornLeft.position.set(-0.12, 2.02, 0);
+hornLeft.rotation.z = 0.2;
+const eyeVisor = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.05, 0.08), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+eyeVisor.position.set(0, 1.8, 0.13);
+group.add(head, hornLeft, eyeVisor);
+
+// 팔
+function makeArm(x, dir) {
+const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), jointMat);
+shoulder.position.set(x, 1.5, 0);
+const armUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.35, 6), bodyMat);
+armUpper.position.set(x + dir * 0.05, 1.3, 0);
+const hand = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.18, 4), bodyMat);
+hand.position.set(x + dir * 0.05, 1.05, 0);
+hand.rotation.x = Math.PI;
+group.add(shoulder, armUpper, hand);
+}
+makeArm(-0.35, -1);
+makeArm(0.35, 1);
+
+// 공전 구체 4종 (전기, 냉기, 암흑, 플라즈마)
+const orbDefs = [
+{ color: 0xf6d365, emissive: 0xffb703, geo: new THREE.OctahedronGeometry(0.11) },
+{ color: 0x48cae4, emissive: 0x0096c7, geo: new THREE.IcosahedronGeometry(0.11) },
+{ color: 0x7209b7, emissive: 0x3a0ca3, geo: new THREE.DodecahedronGeometry(0.11) },
+{ color: 0xf72585, emissive: 0xb5179e, geo: new THREE.SphereGeometry(0.11, 8, 8) }
+];
+
+orbDefs.forEach((d, i) => {
+const m = new THREE.Mesh(d.geo, new THREE.MeshStandardMaterial({
+color: d.color,
+emissive: d.emissive,
+emissiveIntensity: 1.5,
+roughness: 0.2
+}));
+scene.add(m);
+orbs.push({ mesh: m, baseAngle: (Math.PI * 2 / 4) * i });
+});
+
+scene.add(group);
+charGroups['defect'] = group;
+}
+
+// 2. 아이언클래드 모델
+function buildIronclad() {
+const group = new THREE.Group();
+const armorMat = new THREE.MeshStandardMaterial({ color: 0x5a5c66, roughness: 0.4, metalness: 0.7, flatShading: true });
+const clothMat = new THREE.MeshStandardMaterial({ color: 0x8b1e1e, roughness: 0.8 });
+const boneMat = new THREE.MeshStandardMaterial({ color: 0xe0d7c6, roughness: 0.6 });
+
+const torso = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.6, 0.35), armorMat);
+torso.position.y = 1.35;
+const belt = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.15, 0.37), clothMat);
+belt.position.y = 1.02;
+group.add(torso, belt);
+
+function makeLeg(x) {
+const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.8, 6), armorMat);
+leg.position.set(x, 0.5, 0);
+group.add(leg);
+}
+makeLeg(-0.2);
+makeLeg(0.2);
+
+const head = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.3, 0.26), boneMat);
+head.position.y = 1.85;
+const hornL = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.35, 5), boneMat);
+hornL.position.set(-0.2, 2.05, 0);
+hornL.rotation.z = 0.5;
+const hornR = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.35, 5), boneMat);
+hornR.position.set(0.2, 2.05, 0);
+hornR.rotation.z = -0.5;
+group.add(head, hornL, hornR);
+
+// 대검
+const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.4, 0.04), armorMat);
+blade.position.set(0.55, 0.9, 0.3);
+const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.35), boneMat);
+hilt.position.set(0.55, 1.7, 0.3);
+group.add(blade, hilt);
+
+scene.add(group);
+charGroups['ironclad'] = group;
+}
+
+// 3. 사일런트 모델
+function buildSilent() {
+const group = new THREE.Group();
+const hoodMat = new THREE.MeshStandardMaterial({ color: 0x1f442c, roughness: 0.85, flatShading: true });
+const leatherMat = new THREE.MeshStandardMaterial({ color: 0x3d312a, roughness: 0.7 });
+const skullMat = new THREE.MeshStandardMaterial({ color: 0xddd3be, roughness: 0.5 });
+const daggerMat = new THREE.MeshStandardMaterial({ color: 0x2ec4b6, emissive: 0x0f9b8e, emissiveIntensity: 1.2 });
+
+const cloak = new THREE.Mesh(new THREE.ConeGeometry(0.48, 1.3, 7), hoodMat);
+cloak.position.y = 0.85;
+const hood = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.45, 6), hoodMat);
+hood.position.y = 1.75;
+const mask = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 4), skullMat);
+mask.position.set(0, 1.6, 0.16);
+mask.rotation.x = 0.6;
+group.add(cloak, hood, mask);
+
+// 쌍단검
+function makeDagger(x, dir) {
+const d = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.45, 0.02), daggerMat);
+d.position.set(x, 0.95, 0.25);
+d.rotation.z = dir * 0.4;
+group.add(d);
+}
+makeDagger(-0.35, 1);
+makeDagger(0.35, -1);
+
+scene.add(group);
+charGroups['silent'] = group;
+}
+
+// 4. 와쳐 모델
+function buildWatcher() {
+const group = new THREE.Group();
+const robeMat = new THREE.MeshStandardMaterial({ color: 0x3d2645, roughness: 0.85, flatShading: true });
+const goldMat = new THREE.MeshStandardMaterial({ color: 0xf3c623, roughness: 0.3, metalness: 0.8 });
+const skinMat = new THREE.MeshStandardMaterial({ color: 0xecd7c1, roughness: 0.6 });
+
+const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.5, 1.25, 7), robeMat);
+robe.position.y = 0.85;
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), skinMat);
+head.position.y = 1.7;
+const blindfold = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.06, 0.24), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+blindfold.position.set(0, 1.72, 0.04);
+group.add(robe, head, blindfold);
+
+// 봉 (Staff)
+const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.9, 8), goldMat);
+staff.position.set(0.4, 0.95, 0.15);
+staff.rotation.z = -0.15;
+group.add(staff);
+
+scene.add(group);
+charGroups['watcher'] = group;
+}
+
+function selectCharacter(key) {
+currentKey = key;
+for (let k in charGroups) {
+charGroups[k].visible = (k === key);
+}
+orbs.forEach(o => o.mesh.visible = (key === 'defect'));
+
+const names = {
+'defect': '디펙트 (The Defect)',
+'ironclad': '아이언클래드 (The Ironclad)',
+'silent': '사일런트 (The Silent)',
+'watcher': '와쳐 (The Watcher)'
+};
+document.getElementById('char-info').innerText = names[key];
+
+const buttons = document.querySelectorAll('.char-btn');
+buttons.forEach(btn => {
+btn.classList.toggle('active', btn.innerText.includes(names[key].split(' ')[0]));
+});
+}
+
+function onResize() {
+camera.aspect = window.innerWidth / window.innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function animate() {
+requestAnimationFrame(animate);
+const t = performance.now() * 0.0015;
+
+if (currentKey === 'defect') {
+// 에너지 코어 펄스
+if (defectCore) {
+const s = 1.0 + Math.sin(t * 5.0) * 0.08;
+defectCore.scale.set(s, s, s);
+}
+// 구체 궤도 회전
+orbs.forEach((orb, i) => {
+const angle = orb.baseAngle + t * 1.5;
+orb.mesh.position.x = Math.cos(angle) * 0.9;
+orb.mesh.position.z = Math.sin(angle) * 0.9;
+orb.mesh.position.y = 1.7 + Math.sin(t * 3.0 + i) * 0.12;
+orb.mesh.rotation.y += 0.02;
+});
+}
+
+// 부드러운 유휴(Idle) 애니메이션
+if (charGroups[currentKey]) {
+charGroups[currentKey].position.y = Math.sin(t * 2.0) * 0.02;
+}
+
+controls.update();
+renderer.render(scene, camera);
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
