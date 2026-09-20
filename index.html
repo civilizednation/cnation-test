@@ -1,146 +1,134 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>Firebase Test</title>
-<style>
-body {
-    font-family: Arial;
-    padding: 30px;
-}
-button {
-    padding: 15px;
-    margin: 10px;
-    font-size: 18px;
-}
-#result {
-    margin-top:20px;
-    padding:20px;
-    background:#eee;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Test</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+    }
+
+    button {
+      padding: 15px 20px;
+      margin: 10px;
+      font-size: 18px;
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 20px;
+      background: #eeeeee;
+      white-space: pre-wrap;
+    }
+  </style>
 </head>
 
 <body>
 
-<h2>cnation Firebase 테스트</h2>
+  <h2>cnation Firebase 테스트</h2>
 
-<button onclick="saveData()">데이터 저장</button>
-<button onclick="loadData()">데이터 읽기</button>
+  <button onclick="saveData()">데이터 저장</button>
+  <button onclick="loadData()">데이터 읽기</button>
 
-<div id="result">결과 표시</div>
+  <div id="result">결과 표시</div>
 
+  <script type="module">
 
-<script type="module">
+    import { initializeApp } from
+      "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
-import { initializeApp } from 
-"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-
-import { 
-    getFirestore,
-    doc,
-    setDoc,
-    getDoc
-} from 
-"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-
-const firebaseConfig = {
-
-apiKey: "AIzaSyCTwOAC_LrrKH8CKepUOTf0pyd9qRv4y_8",
-
-authDomain: "cnation-project.firebaseapp.com",
-
-projectId: "cnation-project",
-
-storageBucket: "cnation-project.firebasestorage.app",
-
-messagingSenderId: "1004154104261",
-
-appId: "1:1004154104261:web:0eac4c7ded38262ae5c3ac",
-
-measurementId: "G-7PW1NSP5EQ"
-
-};
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      getDoc
+    } from
+      "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 
-const app = initializeApp(firebaseConfig);
+    const firebaseConfig = {
 
-const db = getFirestore(app);
+      // 아래 값만 새로 만든 cnation-key-2 값으로 변경
+      apiKey: "AIzaSyALI560CMiKaGoZ59kCa5Wf0DZZCLQT1UE",
 
-window.db = db;
-    
-console.log(firebaseConfig.projectId);
-console.log(app.options);
+      authDomain: "cnation-project.firebaseapp.com",
+      projectId: "cnation-project",
+      storageBucket: "cnation-project.firebasestorage.app",
+      messagingSenderId: "1004154104261",
+      appId: "1:1004154104261:web:0eac4c7ded38262ae5c3ac",
+      measurementId: "G-7PW1NSP5EQ"
+
+    };
 
 
-window.saveData = async function(){
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-    try {
+
+    window.saveData = async function () {
+
+      const result = document.getElementById("result");
+
+      try {
 
         await setDoc(
-            doc(db,"firebase-test","test"),
-            {
-                message:"Firebase 연결 테스트 OK",
-                time:new Date().toString()
-            }
+          doc(db, "firebase-test", "test"),
+          {
+            message: "Firebase 연결 테스트 OK",
+            time: new Date().toString()
+          }
         );
 
-        document.getElementById("result").innerHTML =
-        "저장 성공";
+        result.textContent = "저장 성공";
 
-    }
-    catch(e){
+      } catch (error) {
 
-        document.getElementById("result").innerHTML =
-        "저장 실패 : " + e.message;
+        result.textContent =
+          "저장 실패\n\n" +
+          "code: " + error.code + "\n" +
+          "message: " + error.message;
 
-        console.error(e);
-    }
+        console.error("Firebase write error:", error);
+      }
+    };
 
-}
 
+    window.loadData = async function () {
 
-window.loadData = async function(){
+      const result = document.getElementById("result");
 
-    try {
+      try {
 
-        const snap =
-        await getDoc(
-            doc(db,"firebase-test","test")
+        const snap = await getDoc(
+          doc(db, "firebase-test", "test")
         );
 
+        if (snap.exists()) {
 
-        if(snap.exists()){
+          result.textContent =
+            "읽기 성공\n\n" +
+            JSON.stringify(snap.data(), null, 2);
 
-            document.getElementById("result").innerHTML =
-            JSON.stringify(
-                snap.data(),
-                null,
-                2
-            );
+        } else {
 
-        }
-        else{
-
-            document.getElementById("result").innerHTML =
-            "데이터 없음";
-
+          result.textContent = "읽기 성공\n\n문서가 없습니다.";
         }
 
-    }
-    catch(e){
+      } catch (error) {
 
-        document.getElementById("result").innerHTML =
-        "읽기 실패 : " + e.message;
+        result.textContent =
+          "읽기 실패\n\n" +
+          "code: " + error.code + "\n" +
+          "message: " + error.message;
 
-        console.error(e);
+        console.error("Firebase read error:", error);
+      }
+    };
 
-    }
-
-}
-
-</script>
+  </script>
 
 </body>
 </html>
