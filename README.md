@@ -1,23 +1,39 @@
-# Gemini Q&A 웹앱 (루트 단일 폴더 구성)
+# Gemini Q&A 테스트 앱
 
-하위 폴더(`api/` 등) 없이 **모든 파일이 최상위(루트)에 위치**하도록 설계된 Vercel 배포용 프로젝트입니다.
+Gemini API(무료 키)로 간단히 질문하고 답을 받는 웹앱입니다. 의존성 설치(`npm install`)가 필요 없습니다.
 
----
+```
+index.html               화면 (브라우저)
+api/chat.js              Vercel 서버리스 함수: POST /api/chat
+lib/gemini.js            Gemini 호출 로직 (키는 서버에서만 사용)
+scripts/dev-server.js    로컬 실행용 서버
+scripts/check-key.js     키 동작 확인 스크립트
+.github/workflows/check-gemini-key.yml   GitHub Actions 에서 키 확인
+```
 
-## 📁 파일 목록 (루트에 모두 위치)
+API 키는 **서버 쪽 환경변수 `GEMINI_API_KEY`** 에서만 읽습니다. 코드나 HTML 에 키를 직접 쓰지 마세요.
 
-1. `index.html` : 프론트엔드 UI 화면 (API 키 입력창 없음, 1,000자 제한)
-2. `chat.js` : 백엔드 서버리스 함수 (서버 내부에서만 키를 읽어 Gemini 호출)
-3. `vercel.json` : `chat.js`를 백엔드 함수로 자동 연결하는 Vercel 라우팅 설정
-4. `package.json` : 프로젝트 메타데이터
-5. `.gitignore` : 보안 제외 설정
-6. `.env.example` : 환경변수 템플릿
+## 1. Vercel 에서 실행
 
----
+1. Vercel 에서 이 저장소를 Import (Framework Preset: **Other**, Build 설정은 비워둠)
+2. Settings → Environment Variables 에 `GEMINI_API_KEY` 등록 (이미 등록됨)
+3. 환경변수를 추가/변경했다면 **Redeploy** 해야 반영됩니다.
+4. 배포된 주소로 접속해서 질문
 
-## 🚀 배포 방법 (초간단)
+## 2. GitHub Actions 로 키 확인
 
-1. 이 폴더 안의 파일들을 깃허브 저장소 루트에 올립니다.
-2. Vercel에서 해당 저장소를 연결(Import)합니다.
-3. Vercel의 **Settings > Environment Variables**에 `GEMINI_API_KEY`를 등록합니다.
-4. 배포 완료 후 생성된 Vercel 링크로 접속하면 키 입력 없이 바로 질문-답변이 가능합니다!
+Repository Settings → Secrets and variables → Actions 에 `GEMINI_API_KEY` 가 있으면,
+Actions 탭 → **Gemini API Key Check** → **Run workflow** 를 누르면 됩니다. 로그에 ✅ 가 나오면 정상입니다.
+
+## 3. 내 PC 에서 실행 (Node.js 20.6 이상)
+
+```bash
+cp .env.example .env      # .env 를 열어 키를 붙여넣기
+npm run check             # 키 동작 확인
+npm run dev               # http://localhost:3000
+```
+
+## 모델 바꾸기
+
+기본값은 최신 Flash 모델을 가리키는 `gemini-flash-latest` 입니다.
+다른 모델을 쓰려면 환경변수 `GEMINI_MODEL` 을 설정하세요 (예: `gemini-2.5-flash`).

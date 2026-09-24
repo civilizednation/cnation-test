@@ -1,10 +1,6 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "chat.js": {
-      "runtime": "nodejs20.x"
-    }
-  },
-  "rewrites": [
-    { "source": "/api/chat", "destination": "/chat.js" }
-  ]
+    "api/chat.js": { "maxDuration": 30 }
+  }
 }
