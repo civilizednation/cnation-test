@@ -33,6 +33,11 @@ npm run check             # 키 동작 확인
 npm run dev               # http://localhost:3000
 ```
 
+## Google 검색 연동
+
+최신 정보가 필요한 질문(날씨, 뉴스 등)에는 모델이 Google 검색을 사용해 답하고, 답변 아래에 출처 링크를 보여줍니다.
+현재 한국 시각도 함께 전달하므로 "지금 몇 시야?" 같은 질문에도 답할 수 있습니다.
+
 ## 모델 바꾸기
 
 기본값은 최신 Flash 모델을 가리키는 `gemini-flash-latest` 이고, 서버가 붐비면(503) 한 번 재시도한 뒤 `gemini-flash-lite-latest` 로 자동 전환합니다.
