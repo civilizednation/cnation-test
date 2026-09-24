@@ -28,6 +28,19 @@ scripts/check-key.js               등록된 키가 동작하는지 확인
 - 순서는 `AI_ORDER` (예: `gemini,groq,github`), 모델은 `GEMINI_MODEL` / `GITHUB_MODEL` / `GROQ_MODEL` 로 바꿀 수 있습니다.
 - 키는 서버 환경변수에서만 읽으며 브라우저로 보내지 않습니다. 코드나 HTML 에 키를 직접 쓰지 마세요.
 
+## 파일 첨부
+
+📎 버튼으로 사진(JPG, PNG, WEBP, GIF)과 PDF 를 최대 3개, 합계 약 3MB 까지 첨부할 수 있습니다.
+사진은 브라우저에서 긴 변 1600px JPEG 로 줄여서 보냅니다 (Vercel 요청 한도 4.5MB).
+
+| AI | 사진 | PDF |
+|---|---|---|
+| Gemini | ✅ | ✅ |
+| GitHub Models | ✅ | ❌ |
+| Groq | ❌ | ❌ |
+
+첨부를 지원하지 않는 AI 는 건너뜁니다.
+
 ## Google 검색 연동
 
 화면의 🔍 체크박스를 켜면 Gemini 가 Google 검색으로 최신 정보를 찾아 답하고 출처 링크를 보여줍니다.

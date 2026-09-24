@@ -34,6 +34,16 @@
     .empty { color: var(--muted); text-align: center; margin-top: 40px; }
     form { display: flex; gap: 8px; position: sticky; bottom: 16px; flex-wrap: wrap; }
     .search-toggle { width: 100%; display: flex; align-items: center; gap: 6px; font-size: .9rem; color: var(--muted); background: var(--bg); }
+    .attach { padding: 0 14px; background: var(--card); color: var(--text); border: 1px solid var(--line); font-size: 1.2rem; }
+    .chips { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; background: var(--bg); }
+    .chips:empty { display: none; }
+    .chip { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 4px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); font-size: .85rem; max-width: 100%; }
+    .chip img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; }
+    .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+    .chip button { padding: 0 6px; background: none; color: var(--muted); font-weight: normal; }
+    .msg .thumbs { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
+    .msg .thumbs img { max-width: 120px; max-height: 120px; border-radius: 8px; }
+    .msg .thumbs .file { font-size: .85rem; padding: 4px 8px; border-radius: 6px; background: var(--card); }
     textarea { flex: 1; resize: none; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; min-height: 52px; }
     button { padding: 0 20px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
     button:disabled { opacity: .5; cursor: default; }
@@ -42,10 +52,13 @@
 <body>
   <main>
     <h1>AI Q&amp;A 테스트</h1>
-    <div id="log"><p class="empty">질문을 입력하고 Enter 를 누르세요. (Shift+Enter 줄바꿈)</p></div>
+    <div id="log"><p class="empty">질문을 입력하고 Enter 를 누르세요. (Shift+Enter 줄바꿈)<br />📎 로 사진이나 PDF 를 첨부할 수 있어요.</p></div>
     <form id="form">
       <label class="search-toggle"><input type="checkbox" id="search" /> 🔍 Google 검색 사용 (최신 정보가 필요할 때만, Gemini 전용)</label>
-      <textarea id="prompt" maxlength="1000" placeholder="무엇이든 물어보세요" required></textarea>
+      <div class="chips" id="chips"></div>
+      <input type="file" id="file" accept="image/*,application/pdf" multiple hidden />
+      <button type="button" class="attach" id="attach" title="사진 또는 PDF 첨부" aria-label="파일 첨부">📎</button>
+      <textarea id="prompt" maxlength="1000" placeholder="무엇이든 물어보세요"></textarea>
       <button id="send" type="submit">전송</button>
     </form>
   </main>
@@ -57,6 +70,106 @@
     const input = document.getElementById('prompt');
     const send = document.getElementById('send');
     const search = document.getElementById('search');
+    const fileInput = document.getElementById('file');
+    const chips = document.getElementById('chips');
+
+    // ---- 첨부파일 ----
+    const MAX_FILES = 3;
+    const MAX_TOTAL_BYTES = 3 * 1024 * 1024; // base64 로 바뀌면 약 4MB (Vercel 요청 한도 4.5MB)
+    const MAX_IMAGE_SIDE = 1600;
+    let attachments = []; // { name, mimeType, data(base64), preview(dataURL|null), size }
+
+    const readAsDataURL = (blob) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+
+    // 휴대폰 사진은 몇 MB 씩 되므로 긴 변 1600px JPEG 로 줄여서 보냅니다.
+    async function shrinkImage(file) {
+      const url = URL.createObjectURL(file);
+      try {
+        const img = await new Promise((resolve, reject) => {
+          const el = new Image();
+          el.onload = () => resolve(el);
+          el.onerror = () => reject(new Error('이미지를 읽을 수 없습니다.'));
+          el.src = url;
+        });
+        const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.naturalWidth * scale);
+        canvas.height = Math.round(img.naturalHeight * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL('image/jpeg', 0.85);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    function renderChips() {
+      chips.textContent = '';
+      attachments.forEach((file, i) => {
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        if (file.preview) {
+          const img = document.createElement('img');
+          img.src = file.preview;
+          img.alt = '';
+          chip.appendChild(img);
+        }
+        const name = document.createElement('span');
+        name.textContent = file.preview ? file.name : `📄 ${file.name}`;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.textContent = '✕';
+        remove.setAttribute('aria-label', `${file.name} 삭제`);
+        remove.onclick = () => { attachments.splice(i, 1); renderChips(); };
+        chip.append(name, remove);
+        chips.appendChild(chip);
+      });
+    }
+
+    document.getElementById('attach').onclick = () => fileInput.click();
+
+    fileInput.addEventListener('change', async () => {
+      for (const file of fileInput.files) {
+        if (attachments.length >= MAX_FILES) {
+          alert(`파일은 ${MAX_FILES}개까지 첨부할 수 있습니다.`);
+          break;
+        }
+        try {
+          let dataURL;
+          if (file.type === 'application/pdf') {
+            dataURL = await readAsDataURL(file);
+          } else if (file.type.startsWith('image/') || /\.(heic|heif)$/i.test(file.name)) {
+            dataURL = await shrinkImage(file);
+          } else {
+            alert(`${file.name}: 이미지와 PDF 만 첨부할 수 있습니다.`);
+            continue;
+          }
+          const [header, data] = dataURL.split(',');
+          const mimeType = header.slice(5, header.indexOf(';'));
+          const size = Math.ceil(data.length * 0.75);
+          const total = attachments.reduce((sum, f) => sum + f.size, 0) + size;
+          if (total > MAX_TOTAL_BYTES) {
+            alert(`${file.name}: 첨부파일 합계가 3MB 를 넘습니다.`);
+            continue;
+          }
+          attachments.push({
+            name: file.name,
+            mimeType,
+            data,
+            size,
+            preview: mimeType.startsWith('image/') ? dataURL : null,
+          });
+        } catch (error) {
+          alert(`${file.name}: ${error.message}`);
+        }
+      }
+      fileInput.value = '';
+      renderChips();
+    });
 
     // 마크다운을 HTML 로 바꿔서 표시 (라이브러리를 못 불러오면 일반 텍스트로)
     function renderMarkdown(el, text) {
@@ -125,10 +238,31 @@
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const prompt = input.value.trim();
-      if (!prompt) return;
+      const files = attachments;
+      if (!prompt && !files.length) return;
 
-      addMessage(prompt, 'user');
+      const userMsg = addMessage(prompt, 'user');
+      if (files.length) {
+        const thumbs = document.createElement('div');
+        thumbs.className = 'thumbs';
+        for (const file of files) {
+          if (file.preview) {
+            const img = document.createElement('img');
+            img.src = file.preview;
+            img.alt = file.name;
+            thumbs.appendChild(img);
+          } else {
+            const tag = document.createElement('div');
+            tag.className = 'file';
+            tag.textContent = `📄 ${file.name}`;
+            thumbs.appendChild(tag);
+          }
+        }
+        userMsg.prepend(thumbs);
+      }
       input.value = '';
+      attachments = [];
+      renderChips();
       send.disabled = true;
       const answer = addMessage('생각 중…', 'pending');
       const body = document.createElement('div');
@@ -153,7 +287,11 @@
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, search: search.checked }),
+          body: JSON.stringify({
+            prompt,
+            search: search.checked,
+            files: files.map(({ name, mimeType, data }) => ({ name, mimeType, data })),
+          }),
         });
         if (!res.ok || !res.headers.get('Content-Type')?.includes('ndjson')) {
           const data = await res.json().catch(() => ({}));
