@@ -44,6 +44,8 @@
     .msg .thumbs { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
     .msg .thumbs img { max-width: 120px; max-height: 120px; border-radius: 8px; }
     .msg .thumbs .file { font-size: .85rem; padding: 4px 8px; border-radius: 6px; background: var(--card); }
+    .ai-status { width: 100%; font-size: .75rem; color: var(--muted); text-align: center; background: var(--bg); padding-bottom: 2px; }
+    .ai-status b { color: var(--accent); font-weight: 600; }
     textarea { flex: 1; resize: none; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; min-height: 52px; }
     button { padding: 0 20px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
     button:disabled { opacity: .5; cursor: default; }
@@ -60,6 +62,7 @@
       <button type="button" class="attach" id="attach" title="사진 또는 PDF 첨부" aria-label="파일 첨부">📎</button>
       <textarea id="prompt" maxlength="1000" placeholder="무엇이든 물어보세요"></textarea>
       <button id="send" type="submit">전송</button>
+      <div class="ai-status" id="ai-status">AI 확인 중…</div>
     </form>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -72,6 +75,33 @@
     const search = document.getElementById('search');
     const fileInput = document.getElementById('file');
     const chips = document.getElementById('chips');
+    const aiStatus = document.getElementById('ai-status');
+
+    // ---- 하단 AI 표시: 사용 가능한 AI 순서 + 마지막으로 답한 AI 강조 ----
+    let providers = [];
+    function renderStatus(lastUsed) {
+      if (!providers.length) {
+        aiStatus.textContent = '사용 가능한 AI 가 없습니다';
+        return;
+      }
+      aiStatus.textContent = 'AI: ';
+      providers.forEach((provider, i) => {
+        if (i) aiStatus.append(' → ');
+        const used = lastUsed && lastUsed.provider === provider.label;
+        const name = used ? `${provider.label} (${lastUsed.model})` : provider.label;
+        if (used) {
+          const b = document.createElement('b');
+          b.textContent = `● ${name}`;
+          aiStatus.appendChild(b);
+        } else {
+          aiStatus.append(name);
+        }
+      });
+    }
+    fetch('/api/status')
+      .then((res) => res.json())
+      .then((data) => { providers = data.providers || []; renderStatus(); })
+      .catch(() => { aiStatus.textContent = ''; });
 
     // ---- 첨부파일 ----
     const MAX_FILES = 3;
@@ -310,6 +340,7 @@
         for await (const event of readEvents(res)) {
           if (event.type === 'meta') {
             meta = event;
+            renderStatus(meta);
           } else if (event.type === 'delta') {
             if (!reply) {
               answer.textContent = '';
