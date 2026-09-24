@@ -1,7 +1,7 @@
 // 로컬 실행용 서버 (의존성 없음): npm run dev -> http://localhost:3000
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { askAI } from '../lib/chat.js';
+import { handleChat } from '../lib/http.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const indexUrl = new URL('../index.html', import.meta.url);
@@ -23,8 +23,7 @@ createServer(async (req, res) => {
       } catch {
         return sendJson(res, 400, { error: '잘못된 JSON 형식입니다.' });
       }
-      const { status, body } = await askAI(payload.prompt, { search: payload.search === true });
-      return sendJson(res, status, body);
+      return handleChat(payload, res);
     }
 
     if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html')) {

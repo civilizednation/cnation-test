@@ -1,16 +1,10 @@
-// Vercel 서버리스 함수: POST /api/chat  { "prompt": "...", "search": false } -> { "reply": "...", ... }
-import { askAI } from '../lib/chat.js';
+// Vercel 서버리스 함수: POST /api/chat  { "prompt": "...", "search": false } -> NDJSON 스트림
+import { handleChat } from '../lib/http.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'POST 요청만 허용됩니다.' });
+    res.writeHead(405, { 'Content-Type': 'application/json; charset=utf-8' });
+    return res.end(JSON.stringify({ error: 'POST 요청만 허용됩니다.' }));
   }
-
-  try {
-    const { status, body } = await askAI(req.body?.prompt, { search: req.body?.search === true });
-    return res.status(status).json(body);
-  } catch (error) {
-    console.error('AI 호출 중 오류:', error);
-    return res.status(500).json({ error: '서버 내부 오류가 발생했습니다.' });
-  }
+  return handleChat(req.body, res);
 }

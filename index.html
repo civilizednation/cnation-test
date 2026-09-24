@@ -15,16 +15,17 @@
     h1 { font-size: 1.3rem; margin: 0; }
     #log { flex: 1; display: flex; flex-direction: column; gap: 12px; }
     .msg { padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); white-space: pre-wrap; word-break: break-word; }
-    .msg.md { white-space: normal; }
-    .msg.md > :first-child { margin-top: 0; }
-    .msg.md > :last-child { margin-bottom: 0; }
-    .msg.md h1, .msg.md h2, .msg.md h3 { font-size: 1.05rem; margin: 1em 0 .4em; }
-    .msg.md pre { overflow-x: auto; padding: 10px; border-radius: 8px; background: var(--bg); }
-    .msg.md code { font-family: ui-monospace, Menlo, monospace; font-size: .9em; }
-    .msg.md blockquote { margin: .5em 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--muted); }
-    .msg.md table { border-collapse: collapse; display: block; overflow-x: auto; }
-    .msg.md th, .msg.md td { border: 1px solid var(--line); padding: 4px 8px; }
-    .msg.md a { color: var(--accent); }
+    .msg .sources.error { color: #dc2626; }
+    .md { white-space: normal; }
+    .md > :first-child { margin-top: 0; }
+    .md > :last-child { margin-bottom: 0; }
+    .md h1, .md h2, .md h3 { font-size: 1.05rem; margin: 1em 0 .4em; }
+    .md pre { overflow-x: auto; padding: 10px; border-radius: 8px; background: var(--bg); }
+    .md code { font-family: ui-monospace, Menlo, monospace; font-size: .9em; }
+    .md blockquote { margin: .5em 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--muted); }
+    .md table { border-collapse: collapse; display: block; overflow-x: auto; }
+    .md th, .md td { border: 1px solid var(--line); padding: 4px 8px; }
+    .md a { color: var(--accent); }
     .msg.user { background: var(--user); align-self: flex-end; max-width: 85%; }
     .msg.error { color: #dc2626; }
     .msg.pending { color: var(--muted); }
@@ -78,6 +79,49 @@
       return el;
     }
 
+    // 서버가 보내는 NDJSON(한 줄에 JSON 하나) 스트림을 이벤트 단위로 읽습니다.
+    async function* readEvents(res) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let newline;
+        while ((newline = buffer.indexOf('\n')) >= 0) {
+          const line = buffer.slice(0, newline).trim();
+          buffer = buffer.slice(newline + 1);
+          if (line) yield JSON.parse(line);
+        }
+      }
+      if (buffer.trim()) yield JSON.parse(buffer);
+    }
+
+    function nearBottom() {
+      return window.innerHeight + window.scrollY >= document.body.scrollHeight - 120;
+    }
+
+    function addFooter(answer, text) {
+      const footer = document.createElement('div');
+      footer.className = 'sources';
+      footer.textContent = text;
+      answer.appendChild(footer);
+      return footer;
+    }
+
+    function addSources(answer, sources) {
+      const box = addFooter(answer, '출처: ');
+      sources.forEach((source, i) => {
+        const link = document.createElement('a');
+        link.href = source.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = `[${i + 1}] ${source.title}`;
+        box.appendChild(link);
+      });
+    }
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const prompt = input.value.trim();
@@ -87,6 +131,23 @@
       input.value = '';
       send.disabled = true;
       const answer = addMessage('생각 중…', 'pending');
+      const body = document.createElement('div');
+      let reply = '';
+      let meta = null;
+      const sources = [];
+      let scheduled = false;
+
+      // 글자가 들어올 때마다 다시 그리되, 화면 갱신 주기(약 60fps)에 맞춰 한 번씩만
+      const render = () => {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(() => {
+          scheduled = false;
+          const stick = nearBottom();
+          renderMarkdown(body, reply);
+          if (stick) window.scrollTo(0, document.body.scrollHeight);
+        });
+      };
 
       try {
         const res = await fetch('/api/chat', {
@@ -94,31 +155,41 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt, search: search.checked }),
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || `요청 실패 (HTTP ${res.status})`);
-        answer.className = 'msg';
-        renderMarkdown(answer, data.reply);
-        const meta = document.createElement('div');
-        meta.className = 'sources';
-        meta.textContent = `${data.provider} · ${data.model}${data.search ? ' · 🔍 검색 사용' : ''}`;
-        answer.appendChild(meta);
-        if (data.sources?.length) {
-          const box = document.createElement('div');
-          box.className = 'sources';
-          box.append('출처: ');
-          data.sources.forEach((source, i) => {
-            const link = document.createElement('a');
-            link.href = source.url;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            link.textContent = `[${i + 1}] ${source.title}`;
-            box.appendChild(link);
-          });
-          answer.appendChild(box);
+        if (!res.ok || !res.headers.get('Content-Type')?.includes('ndjson')) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `요청 실패 (HTTP ${res.status})`);
         }
+
+        for await (const event of readEvents(res)) {
+          if (event.type === 'meta') {
+            meta = event;
+          } else if (event.type === 'delta') {
+            if (!reply) {
+              answer.textContent = '';
+              answer.className = 'msg';
+              answer.appendChild(body);
+            }
+            reply += event.text;
+            render();
+          } else if (event.type === 'sources') {
+            sources.push(...event.sources);
+          } else if (event.type === 'error') {
+            throw new Error(event.error);
+          }
+        }
+
+        renderMarkdown(body, reply);
+        if (meta) addFooter(answer, `${meta.provider} · ${meta.model}${meta.search ? ' · 🔍 검색 사용' : ''}`);
+        if (sources.length) addSources(answer, sources);
       } catch (error) {
-        answer.textContent = `오류: ${error.message}`;
-        answer.className = 'msg error';
+        if (reply) {
+          // 답변 도중에 끊긴 경우: 받은 부분은 남기고 오류를 덧붙입니다.
+          renderMarkdown(body, reply);
+          addFooter(answer, `⚠️ ${error.message}`).classList.add('error');
+        } else {
+          answer.textContent = `오류: ${error.message}`;
+          answer.className = 'msg error';
+        }
       } finally {
         send.disabled = false;
         input.focus();
