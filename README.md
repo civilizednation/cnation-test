@@ -8,6 +8,7 @@ api/chat.js                        Vercel 서버리스 함수: POST /api/chat
 lib/chat.js                        여러 AI 를 순서대로 시도하는 라우터
 lib/providers/gemini.js            Google Gemini (+ Google 검색 연동)
 lib/providers/openai-compatible.js GitHub Models, Groq
+lib/search.js                      Tavily 웹 검색
 lib/cooldown.js                    한도 초과된 AI 를 5분간 건너뛰기
 lib/http.js / lib/sse.js           스트리밍 응답 처리
 scripts/dev-server.js              로컬 실행용 서버
@@ -41,10 +42,13 @@ scripts/check-key.js               등록된 키가 동작하는지 확인
 
 첨부를 지원하지 않는 AI 는 건너뜁니다.
 
-## Google 검색 연동
+## 웹 검색
 
-화면의 🔍 체크박스를 켜면 Gemini 가 Google 검색으로 최신 정보를 찾아 답하고 출처 링크를 보여줍니다.
-검색 연동은 무료 한도가 적어서, 거절되면 검색 없이 답합니다.
+화면의 🔍 체크박스를 켜면 최신 정보를 검색해서 답하고 출처 링크를 보여줍니다.
+
+1. `TAVILY_API_KEY` 가 있으면 [Tavily](https://app.tavily.com) 로 먼저 검색하고, 결과를 질문에 붙여서 보냅니다. Gemini, GitHub Models, Groq 어느 AI 가 답해도 동작합니다.
+2. Tavily 키가 없거나 실패하면 Gemini 의 Google 검색 연동을 시도합니다 (무료 키에서는 대부분 막혀 있음).
+3. 둘 다 안 되면 검색 없이 답하고, 답변 아래에 ℹ️ 안내를 표시합니다.
 
 ## 1. Vercel 에서 실행
 
