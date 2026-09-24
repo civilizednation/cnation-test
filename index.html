@@ -72,6 +72,10 @@
         if (!res.ok) throw new Error(data.error || `요청 실패 (HTTP ${res.status})`);
         answer.textContent = data.reply;
         answer.className = 'msg';
+        const meta = document.createElement('div');
+        meta.className = 'sources';
+        meta.textContent = `모델: ${data.model} · 검색 ${data.search ? '사용' : '미사용'}`;
+        answer.appendChild(meta);
         if (data.sources?.length) {
           const box = document.createElement('div');
           box.className = 'sources';
