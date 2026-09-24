@@ -2,6 +2,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { handleChat } from '../lib/http.js';
+import { providerStatus } from '../lib/chat.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const indexUrl = new URL('../index.html', import.meta.url);
@@ -24,6 +25,10 @@ createServer(async (req, res) => {
         return sendJson(res, 400, { error: '잘못된 JSON 형식입니다.' });
       }
       return handleChat(payload, res);
+    }
+
+    if (req.method === 'GET' && req.url === '/api/status') {
+      return sendJson(res, 200, { providers: providerStatus() });
     }
 
     if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html')) {
