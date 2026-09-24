@@ -1,0 +1,21 @@
+# 환경 변수 및 비밀 키 파일 (절대 깃허브에 올리지 않음)
+.env
+.env.local
+.env.*.local
+
+# Node.js 의존성 폴더
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python 캐시 및 가상환경 폴더
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# OS 생성 파일
+.DS_Store
+Thumbs.db

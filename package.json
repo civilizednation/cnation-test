@@ -1,0 +1,12 @@
+{
+  "name": "gemini-api-test",
+  "version": "1.0.0",
+  "description": "Gemini API Key 테스트 및 웹앱 연동 스타터",
+  "type": "module",
+  "scripts": {
+    "test": "node test_gemini.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}
