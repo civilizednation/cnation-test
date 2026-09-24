@@ -1,43 +1,23 @@
-# Gemini API 깃허브 연동 및 테스트 프로젝트
+# Gemini Q&A 웹앱 (루트 단일 폴더 구성)
 
-본 프로젝트는 소스 코드에 API 키를 노출시키지 않고 **깃허브(GitHub)에 올려서 직접 테스트**할 수 있도록 구성된 패키지입니다.
-
----
-
-## 📁 주요 구성 파일
-
-1. **`.github/workflows/test.yml`**: 깃허브 클라우드 환경(GitHub Actions)에서 자동으로 API 키를 검증하는 워크플로우 설정 파일
-2. **`index.html`**: 깃허브 Pages 또는 브라우저에서 바로 질문/답변을 주고받을 수 있는 웹앱 프로토타입
-3. **`test_gemini.py` / `test_gemini.js`**: API 정상 작동 테스트 스크립트
-4. **`.gitignore`**: 키 정보 파일(`.env`)이 깃허브에 커밋되지 않도록 차단
-5. **`.env.example`**: 로컬 환경 변수 템플릿
+하위 폴더(`api/` 등) 없이 **모든 파일이 최상위(루트)에 위치**하도록 설계된 Vercel 배포용 프로젝트입니다.
 
 ---
 
-## 🚀 깃허브(GitHub)에 올려서 테스트하는 방법 (4단계)
+## 📁 파일 목록 (루트에 모두 위치)
 
-### 1단계: 깃허브에 코드 올리기
-1. 깃허브(GitHub.com)에서 새 저장소(New Repository)를 만듭니다.
-2. 다운로드받은 파일들을 해당 저장소에 커밋 & 푸시(Push)합니다.
-   * `.github` 폴더와 `test_gemini.py`, `index.html` 등이 깃허브에 업로드됩니다.
-
-### 2단계: 깃허브 저장소에 키 비밀 등록 (가장 중요)
-코드에 키를 적는 대신, 깃허브의 보안 금고(Secrets)에 키를 등록합니다.
-1. 깃허브 저장소 상단 메뉴의 **Settings** 클릭
-2. 좌측 메뉴에서 **Secrets and variables** > **Actions** 클릭
-3. **"New repository secret"** 초록색 버튼 클릭
-4. 다음 정보를 입력하고 저장:
-   * **Name**: `GEMINI_API_KEY`
-   * **Secret**: 보유하신 실제 Gemini API 키 (`AIzaSy...`) 붙여넣기
-
-### 3단계: 깃허브 Actions에서 테스트 실행
-1. 깃허브 저장소 상단 메뉴의 **Actions** 탭 클릭
-2. 좌측 워크플로우 목록에서 **"Gemini API Key Test"** 클릭
-3. 우측의 **"Run workflow"** 버튼 클릭 후 초록색 **"Run workflow"** 버튼 클릭
-4. 몇 초 후 작업(Job)이 실행되며 초록색 체크(✔) 표시가 뜹니다.
-5. 실행 기록을 클릭하여 `Gemini API 테스트 실행` 항목을 펼쳐보면 **`🎉 [성공] Gemini API 키가 정상 작동합니다!`** 와 Gemini의 실제 응답 문장을 깃허브 화면에서 직접 확인하실 수 있습니다.
+1. `index.html` : 프론트엔드 UI 화면 (API 키 입력창 없음, 1,000자 제한)
+2. `chat.js` : 백엔드 서버리스 함수 (서버 내부에서만 키를 읽어 Gemini 호출)
+3. `vercel.json` : `chat.js`를 백엔드 함수로 자동 연결하는 Vercel 라우팅 설정
+4. `package.json` : 프로젝트 메타데이터
+5. `.gitignore` : 보안 제외 설정
+6. `.env.example` : 환경변수 템플릿
 
 ---
 
-## 🌐 질문-답변 웹앱(index.html) 활용
-* 저장소의 `index.html` 파일을 브라우저로 열거나, 깃허브 **Settings > Pages**에서 브라우저 배포를 활성화하면 질문을 입력하고 Gemini의 답변을 받는 웹앱을 즉시 테스트할 수 있습니다.
+## 🚀 배포 방법 (초간단)
+
+1. 이 폴더 안의 파일들을 깃허브 저장소 루트에 올립니다.
+2. Vercel에서 해당 저장소를 연결(Import)합니다.
+3. Vercel의 **Settings > Environment Variables**에 `GEMINI_API_KEY`를 등록합니다.
+4. 배포 완료 후 생성된 Vercel 링크로 접속하면 키 입력 없이 바로 질문-답변이 가능합니다!
