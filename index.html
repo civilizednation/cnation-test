@@ -18,6 +18,8 @@
     .msg.user { background: var(--user); align-self: flex-end; max-width: 85%; }
     .msg.error { color: #dc2626; }
     .msg.pending { color: var(--muted); }
+    .sources { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: .85rem; color: var(--muted); white-space: normal; }
+    .sources a { color: var(--accent); text-decoration: none; margin-right: 10px; display: inline-block; }
     .empty { color: var(--muted); text-align: center; margin-top: 40px; }
     form { display: flex; gap: 8px; position: sticky; bottom: 16px; }
     textarea { flex: 1; resize: none; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; min-height: 52px; }
@@ -70,6 +72,20 @@
         if (!res.ok) throw new Error(data.error || `요청 실패 (HTTP ${res.status})`);
         answer.textContent = data.reply;
         answer.className = 'msg';
+        if (data.sources?.length) {
+          const box = document.createElement('div');
+          box.className = 'sources';
+          box.append('출처: ');
+          data.sources.forEach((source, i) => {
+            const link = document.createElement('a');
+            link.href = source.url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = `[${i + 1}] ${source.title}`;
+            box.appendChild(link);
+          });
+          answer.appendChild(box);
+        }
       } catch (error) {
         answer.textContent = `오류: ${error.message}`;
         answer.className = 'msg error';
