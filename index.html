@@ -171,10 +171,19 @@
       renderChips();
     });
 
+    // 마크다운 규칙상 "**서울(Seoul)**은" 처럼 닫는 ** 앞이 문장부호이고 뒤가 한글이면 굵게가 안 됩니다.
+    // 코드 블록(```)이 아닌 부분의 한 줄짜리 **…** 는 직접 <strong> 으로 바꿔 줍니다.
+    function fixCjkBold(text) {
+      return text
+        .split(/(```[\s\S]*?(?:```|$))/)
+        .map((part, i) => (i % 2 ? part : part.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')))
+        .join('');
+    }
+
     // 마크다운을 HTML 로 바꿔서 표시 (라이브러리를 못 불러오면 일반 텍스트로)
     function renderMarkdown(el, text) {
       if (window.marked && window.DOMPurify) {
-        el.innerHTML = DOMPurify.sanitize(marked.parse(text));
+        el.innerHTML = DOMPurify.sanitize(marked.parse(fixCjkBold(text)));
         el.querySelectorAll('a').forEach((a) => { a.target = '_blank'; a.rel = 'noopener noreferrer'; });
         el.classList.add('md');
       } else {
