@@ -1,0 +1,17 @@
+name: Gemini API Key Check
+
+on:
+  workflow_dispatch: # Actions 탭에서 "Run workflow" 버튼으로 실행
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Gemini 호출 테스트
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/check-key.js

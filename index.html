@@ -1,238 +1,90 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gemini AI Q&A</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gemini Q&amp;A 테스트</title>
   <style>
-    :root {
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --text: #0f172a;
-      --text-muted: #64748b;
-      --border: #e2e8f0;
-      --radius: 12px;
+    :root { --bg: #f5f6f8; --card: #fff; --text: #1d1f23; --muted: #6b7280; --accent: #2563eb; --user: #e8efff; --line: #e5e7eb; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #111317; --card: #1b1e24; --text: #e8eaed; --muted: #9aa0a6; --accent: #7aa2ff; --user: #243049; --line: #2c3038; }
     }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-      padding: 24px 16px;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .card {
-      width: 100%;
-      max-width: 600px;
-      background: var(--card-bg);
-      border-radius: var(--radius);
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
-      padding: 30px 24px;
-      border: 1px solid var(--border);
-    }
-
-    header { margin-bottom: 24px; text-align: center; }
-    header h1 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-    header p { font-size: 14px; color: var(--text-muted); }
-
-    .input-group { margin-bottom: 20px; }
-    label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #334155; }
-    textarea {
-      width: 100%;
-      height: 120px;
-      padding: 14px 16px;
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      font-size: 15px;
-      font-family: inherit;
-      resize: vertical;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    textarea:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-    }
-
-    .char-counter {
-      display: flex;
-      justify-content: flex-end;
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 6px;
-    }
-
-    button {
-      width: 100%;
-      background: var(--primary);
-      color: #ffffff;
-      border: none;
-      padding: 14px;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: background 0.2s, transform 0.1s;
-    }
-    button:hover { background: var(--primary-hover); }
-    button:active { transform: scale(0.99); }
-    button:disabled { background: #94a3b8; cursor: not-allowed; transform: none; }
-
-    .response-area {
-      margin-top: 24px;
-      border-top: 1px solid var(--border);
-      padding-top: 20px;
-      display: none;
-    }
-    .response-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 10px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #1e293b;
-    }
-    .response-box {
-      background: #f1f5f9;
-      border-radius: 10px;
-      padding: 16px 18px;
-      font-size: 15px;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      word-break: break-word;
-      color: #1e293b;
-      border: 1px solid #e2e8f0;
-    }
-
-    .error-box {
-      background: #fef2f2;
-      border-color: #fecaca;
-      color: #991b1b;
-    }
-
-    footer {
-      margin-top: 20px;
-      text-align: center;
-      font-size: 12px;
-      color: var(--text-muted);
-    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 24px 16px; min-height: 100vh; display: flex; flex-direction: column; gap: 16px; }
+    h1 { font-size: 1.3rem; margin: 0; }
+    #log { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+    .msg { padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); white-space: pre-wrap; word-break: break-word; }
+    .msg.user { background: var(--user); align-self: flex-end; max-width: 85%; }
+    .msg.error { color: #dc2626; }
+    .msg.pending { color: var(--muted); }
+    .empty { color: var(--muted); text-align: center; margin-top: 40px; }
+    form { display: flex; gap: 8px; position: sticky; bottom: 16px; }
+    textarea { flex: 1; resize: none; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; min-height: 52px; }
+    button { padding: 0 20px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: default; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <header>
-      <h1>Gemini Q&A 어시스턴트</h1>
-      <p>궁금한 점을 자유롭게 질문해 보세요.</p>
-    </header>
-
-    <div class="input-group">
-      <label for="prompt">질문 내용</label>
-      <textarea id="prompt" maxlength="1000" placeholder="무엇이든 물어보세요... (최대 1,000자)"></textarea>
-      <div class="char-counter"><span id="charCount">0</span> / 1,000자</div>
-    </div>
-
-    <button id="sendBtn" onclick="handleAsk()">
-      <span>질문하기</span>
-    </button>
-
-    <div id="responseArea" class="response-area">
-      <div class="response-header">
-        <span id="responseIcon">✨</span>
-        <span id="responseTitle">답변 내용</span>
-      </div>
-      <div id="responseBox" class="response-box"></div>
-    </div>
-  </div>
-
-  <footer>
-    <p>Powered by Google Gemini 2.5 Flash & Vercel</p>
-  </footer>
-
+  <main>
+    <h1>Gemini Q&amp;A 테스트</h1>
+    <div id="log"><p class="empty">질문을 입력하고 Enter 를 누르세요. (Shift+Enter 줄바꿈)</p></div>
+    <form id="form">
+      <textarea id="prompt" maxlength="1000" placeholder="무엇이든 물어보세요" required></textarea>
+      <button id="send" type="submit">전송</button>
+    </form>
+  </main>
   <script>
-    const promptInput = document.getElementById('prompt');
-    const charCount = document.getElementById('charCount');
-    const sendBtn = document.getElementById('sendBtn');
-    const responseArea = document.getElementById('responseArea');
-    const responseBox = document.getElementById('responseBox');
-    const responseTitle = document.getElementById('responseTitle');
-    const responseIcon = document.getElementById('responseIcon');
+    const log = document.getElementById('log');
+    const form = document.getElementById('form');
+    const input = document.getElementById('prompt');
+    const send = document.getElementById('send');
 
-    promptInput.addEventListener('input', () => {
-      charCount.textContent = promptInput.value.length;
-    });
+    function addMessage(text, kind) {
+      log.querySelector('.empty')?.remove();
+      const el = document.createElement('div');
+      el.className = `msg ${kind}`;
+      el.textContent = text;
+      log.appendChild(el);
+      el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      return el;
+    }
 
-    async function handleAsk() {
-      const prompt = promptInput.value.trim();
-      if (!prompt) {
-        alert('질문을 입력해 주세요.');
-        promptInput.focus();
-        return;
-      }
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const prompt = input.value.trim();
+      if (!prompt) return;
 
-      sendBtn.disabled = true;
-      sendBtn.innerHTML = '<span>답변 생성 중...</span>';
-      responseArea.style.display = 'block';
-      responseBox.className = 'response-box';
-      responseIcon.textContent = '⏳';
-      responseTitle.textContent = 'Gemini가 답변을 작성하고 있습니다...';
-      responseBox.textContent = '잠시만 기다려주세요.';
+      addMessage(prompt, 'user');
+      input.value = '';
+      send.disabled = true;
+      const answer = addMessage('생각 중…', 'pending');
 
       try {
-        // Vercel 백엔드 호출 (/api/chat 또는 /chat.js)
-        let res = await fetch('/api/chat', {
+        const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: prompt })
+          body: JSON.stringify({ prompt }),
         });
-
-        // 만약 rewrite 미적용 시 직접 chat.js 호출 시도
-        if (res.status === 404) {
-          res = await fetch('/chat.js', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: prompt })
-          });
-        }
-
-        const data = await res.json();
-
-        if (res.ok) {
-          responseIcon.textContent = '✨';
-          responseTitle.textContent = 'Gemini 답변';
-          responseBox.textContent = data.reply;
-        } else {
-          responseIcon.textContent = '⚠️';
-          responseTitle.textContent = '오류 안내';
-          responseBox.className = 'response-box error-box';
-          responseBox.textContent = data.error || '답변을 불러오는 중 오류가 발생했습니다.';
-        }
-      } catch (err) {
-        responseIcon.textContent = '❌';
-        responseTitle.textContent = '통신 에러';
-        responseBox.className = 'response-box error-box';
-        responseBox.textContent = '서버와 연결할 수 없습니다. 인터넷 연결을 확인해 주세요.';
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `요청 실패 (HTTP ${res.status})`);
+        answer.textContent = data.reply;
+        answer.className = 'msg';
+      } catch (error) {
+        answer.textContent = `오류: ${error.message}`;
+        answer.className = 'msg error';
       } finally {
-        sendBtn.disabled = false;
-        sendBtn.innerHTML = '<span>질문하기</span>';
+        send.disabled = false;
+        input.focus();
       }
-    }
+    });
+
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
   </script>
 </body>
 </html>
