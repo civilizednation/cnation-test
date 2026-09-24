@@ -1,0 +1,25 @@
+name: Gemini API Key Test
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # 깃허브 웹 화면(Actions 탭)에서 버튼 클릭으로 직접 실행 가능
+
+jobs:
+  run-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 저장소 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 환경 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Gemini API 테스트 실행
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python test_gemini.py
