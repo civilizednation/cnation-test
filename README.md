@@ -35,5 +35,5 @@ npm run dev               # http://localhost:3000
 
 ## 모델 바꾸기
 
-기본값은 최신 Flash 모델을 가리키는 `gemini-flash-latest` 입니다.
+기본값은 최신 Flash 모델을 가리키는 `gemini-flash-latest` 이고, 서버가 붐비면(503) 한 번 재시도한 뒤 `gemini-flash-lite-latest` 로 자동 전환합니다.
 다른 모델을 쓰려면 환경변수 `GEMINI_MODEL` 을 설정하세요 (예: `gemini-2.5-flash`).
