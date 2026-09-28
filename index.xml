@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>슬램덩크 1권 웹 뷰어 | Slam Dunk Vol.1</title>
+  <style>
+    :root {
+      --bg-color: #121316;
+      --card-bg: rgba(26, 28, 34, 0.92);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --accent-color: #e53935;
+      --accent-hover: #ff5252;
+      --text-color: #f1f1f1;
+      --text-dim: #9e9ea7;
+      --header-height: 56px;
+      --footer-height: 64px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      position: relative;
+    }
+
+    /* Top Navigation Bar */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--header-height);
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
+      transition: transform 0.28s ease, opacity 0.28s ease;
+    }
+
+    header.hidden {
+      transform: translateY(-100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .nav-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .book-badge {
+      background: var(--accent-color);
+      color: white;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .book-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid transparent;
+      color: var(--text-color);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-icon {
+      padding: 8px;
+      border-radius: 8px;
+    }
+
+    .btn-active {
+      background: var(--accent-color) !important;
+      color: white !important;
+    }
+
+    /* Main Viewer Viewport */
+    #viewer-viewport {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      touch-action: pan-y pinch-zoom;
+    }
+
+    /* Scroll Mode Viewport */
+    #viewer-viewport.mode-scroll {
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: block;
+      padding: calc(var(--header-height) + 16px) 0 calc(var(--footer-height) + 24px) 0;
+      text-align: center;
+      scroll-behavior: smooth;
+    }
+
+    #viewer-viewport.mode-scroll::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #viewer-viewport.mode-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+
+    /* Page Canvas / Display */
+    .page-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      width: 100%;
+      gap: 12px;
+      transition: transform 0.12s ease-out;
+      transform-origin: center center;
+    }
+
+    .manga-page {
+      max-height: 100%;
+      max-width: 100%;
+      object-fit: contain;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75);
+      border-radius: 2px;
+      background: #1c1c1c;
+      transition: opacity 0.2s ease;
+    }
+
+    .fit-height .manga-page {
+      height: calc(100vh - 20px);
+      width: auto;
+    }
+
+    .fit-width .manga-page {
+      width: calc(100vw - 20px);
+      height: auto;
+      max-height: none;
+    }
+
+    .mode-scroll .manga-page {
+      display: block;
+      margin: 0 auto 12px auto;
+      max-width: 900px;
+      width: 95%;
+      height: auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Clickable Touch Zones for page turning */
+    .nav-zone {
+      position: absolute;
+      top: var(--header-height);
+      bottom: var(--footer-height);
+      width: 32%;
+      z-index: 20;
+      cursor: pointer;
+    }
+
+    .nav-zone-prev { left: 0; }
+    .nav-zone-next { right: 0; }
+    .nav-zone-center {
+      left: 32%;
+      width: 36%;
+      cursor: default;
+    }
+
+    /* Bottom Control Bar */
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: var(--footer-height);
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 100;
+      transition: transform 0.28s ease, opacity 0.28s ease;
+      gap: 16px;
+    }
+
+    footer.hidden {
+      transform: translateY(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .footer-left, .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .footer-center {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-grow: 1;
+      max-width: 600px;
+    }
+
+    /* Slider Bar */
+    .slider-container {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+
+    .page-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.2);
+      outline: none;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .page-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(229, 57, 53, 0.8);
+      transition: transform 0.1s ease;
+    }
+
+    .page-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.25);
+    }
+
+    .page-counter {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-color);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .page-input {
+      width: 44px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      text-align: center;
+      border-radius: 4px;
+      padding: 3px 0;
+      font-size: 13px;
+    }
+
+    .page-input:focus {
+      border-color: var(--accent-color);
+      outline: none;
+    }
+
+    /* Sidebar / Thumbnail Drawer */
+    #thumb-drawer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 320px;
+      max-width: 85vw;
+      background: #17181c;
+      border-right: 1px solid var(--card-border);
+      z-index: 200;
+      transform: translateX(-100%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 8px 0 24px rgba(0, 0, 0, 0.6);
+    }
+
+    #thumb-drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .drawer-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .drawer-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .drawer-grid::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .drawer-grid::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+
+    .thumb-card {
+      background: #202228;
+      border: 2px solid transparent;
+      border-radius: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .thumb-card:hover {
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .thumb-card.active {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 10px rgba(229, 57, 53, 0.5);
+    }
+
+    .thumb-img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      background: #101012;
+    }
+
+    .thumb-label {
+      padding: 6px;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* Overlay backdrop */
+    #backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 150;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    #backdrop.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Loading Spinner */
+    .spinner {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      border: 4px solid rgba(255, 255, 255, 0.15);
+      border-top-color: var(--accent-color);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(30, 32, 40, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      z-index: 300;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Modal Help Dialog */
+    .modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      background: #1c1d22;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 460px;
+      width: 90vw;
+      z-index: 250;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .modal.open {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .modal h3 {
+      font-size: 18px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .shortcut-list {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px 14px;
+      font-size: 13px;
+      margin-top: 14px;
+    }
+
+    .key-badge {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-family: monospace;
+      font-weight: 600;
+      color: #ff9800;
+      text-align: center;
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+      .btn-text { display: none; }
+      .book-title { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .nav-zone { width: 25%; }
+      .nav-zone-center { left: 25%; width: 50%; }
+      .footer-left { display: none; }
+      footer { padding: 0 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header id="main-header">
+    <div class="nav-title-group">
+      <button class="btn btn-icon" id="btn-toggle-drawer" title="목차 / 썸네일 (T)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
+      <span class="book-badge">MANGA</span>
+      <h1 class="book-title">슬램덩크 1권</h1>
+    </div>
+
+    <div class="nav-actions">
+      <!-- View Mode Buttons -->
+      <button class="btn" id="btn-mode-single" title="단면 보기 (1)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/></svg>
+        <span class="btn-text">단면</span>
+      </button>
+      <button class="btn" id="btn-mode-double" title="양면 펼쳐보기 (2)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/></svg>
+        <span class="btn-text">양면</span>
+      </button>
+      <button class="btn" id="btn-mode-scroll" title="연속 스크롤 (3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M6 8l6-5 6 5M6 16l6 5 6-5"/></svg>
+        <span class="btn-text">스크롤</span>
+      </button>
+
+      <!-- Reading Direction Toggle (Only for Double/Single) -->
+      <button class="btn" id="btn-direction" title="읽기 방향 전환: 우측에서 좌측으로 읽기(원작) / 좌측에서 우측으로">
+        <span id="direction-label">우→좌</span>
+      </button>
+
+      <!-- Fit Screen Toggle -->
+      <button class="btn btn-icon" id="btn-fit-toggle" title="화면 높이/너비 맞춤 전환">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+      </button>
+
+      <!-- Keyboard Help -->
+      <button class="btn btn-icon" id="btn-help" title="단축키 안내 (?)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
+      </button>
+
+      <!-- Fullscreen Toggle -->
+      <button class="btn btn-icon" id="btn-fullscreen" title="전체화면 (F)">
+        <svg id="fs-icon-enter" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        <svg id="fs-icon-exit" style="display:none;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14h6m0 0v6m0-6l-7 7m17-11h-6m0 0V4m0 6l7-7"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Viewport -->
+  <main id="viewer-viewport" class="fit-height">
+    <!-- Click navigation zones (for single/double mode) -->
+    <div class="nav-zone nav-zone-prev" id="zone-prev" title="이전 페이지"></div>
+    <div class="nav-zone nav-zone-center" id="zone-center" title="메뉴 열기/닫기"></div>
+    <div class="nav-zone nav-zone-next" id="zone-next" title="다음 페이지"></div>
+
+    <!-- Active pages rendered here -->
+    <div class="page-container" id="page-container">
+      <!-- Images inserted dynamically -->
+    </div>
+
+    <div class="spinner" id="loading-spinner" style="display: none;"></div>
+  </main>
+
+  <!-- Bottom Control Bar -->
+  <footer id="main-footer">
+    <div class="footer-left">
+      <button class="btn" id="btn-first" title="첫 페이지 (Home)">처음</button>
+      <button class="btn" id="btn-prev" title="이전 (←)">◀ 이전</button>
+    </div>
+
+    <div class="footer-center">
+      <div class="slider-container">
+        <input type="range" class="page-slider" id="page-slider" min="1" max="118" value="1">
+      </div>
+      <div class="page-counter">
+        <input type="number" class="page-input" id="page-input" min="1" max="118" value="1">
+        <span>/ <span id="total-page-count">118</span></span>
+      </div>
+    </div>
+
+    <div class="footer-right">
+      <button class="btn" id="btn-next" title="다음 (→)">다음 ▶</button>
+      <button class="btn" id="btn-last" title="마지막 페이지 (End)">끝</button>
+    </div>
+  </footer>
+
+  <!-- Thumbnail Sidebar Drawer -->
+  <div id="backdrop"></div>
+  <aside id="thumb-drawer">
+    <div class="drawer-header">
+      <div class="drawer-title">페이지 목록 (총 118쪽)</div>
+      <button class="btn btn-icon" id="btn-close-drawer">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="drawer-grid" id="drawer-grid">
+      <!-- Thumbnails populated here -->
+    </div>
+  </aside>
+
+  <!-- Help / Shortcut Modal -->
+  <div class="modal" id="help-modal">
+    <h3>
+      <span>단축키 안내</span>
+      <button class="btn btn-icon" id="btn-close-modal">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </h3>
+    <div class="shortcut-list">
+      <div><span class="key-badge">←</span> / <span class="key-badge">→</span></div>
+      <div>이전 / 다음 페이지 이동</div>
+
+      <div><span class="key-badge">A</span> / <span class="key-badge">D</span></div>
+      <div>이전 / 다음 페이지 이동</div>
+
+      <div><span class="key-badge">Space</span></div>
+      <div>다음 페이지로 이동 (Shift+Space: 이전)</div>
+
+      <div><span class="key-badge">1</span> / <span class="key-badge">2</span> / <span class="key-badge">3</span></div>
+      <div>단면 / 양면 / 연속 스크롤 모드 전환</div>
+
+      <div><span class="key-badge">F</span></div>
+      <div>전체화면 켜기 / 끄기</div>
+
+      <div><span class="key-badge">T</span> / <span class="key-badge">M</span></div>
+      <div>목차 / 썸네일 서랍 열기/닫기</div>
+
+      <div><span class="key-badge">H</span></div>
+      <div>상/하단 툴바 숨기기 / 보이기</div>
+
+      <div><span class="key-badge">Home</span> / <span class="key-badge">End</span></div>
+      <div>첫 페이지 / 마지막 페이지 즉시 이동</div>
+    </div>
+  </div>
+
+  <!-- Toast Notification element -->
+  <div id="toast"></div>
+
+  <!-- Viewer Application Script -->
+  <script>
+    // 118 Pages Dataset with Google Drive IDs and Resource Keys
+    const PAGES_DATA = [{"page": 1, "title": "Slam Dunk 01_001.jpg", "id": "0B_Fq1xsSZuWIUTAzWldYOFZsWFE", "rk": "0-c0q7a7i7Dl__5K5L2tjndg"}, {"page": 2, "title": "Slam Dunk 01_002.jpg", "id": "0B_Fq1xsSZuWIRVdGblJIeUJDenc", "rk": "0-5r_jNRKgATxG5hTHQIOnYA"}, {"page": 3, "title": "Slam Dunk 01_003.jpg", "id": "0B_Fq1xsSZuWIVkxucFljbjlqc2c", "rk": "0-mYr3D1wrZa8KjfAsCc3OkA"}, {"page": 4, "title": "Slam Dunk 01_004.jpg", "id": "0B_Fq1xsSZuWIX3hZM1VhZWEtZlU", "rk": "0-0jSwOxwtzwU31lPOuaHu3w"}, {"page": 5, "title": "Slam Dunk 01_005.jpg", "id": "0B_Fq1xsSZuWIV3Vibk9BbXdPdWM", "rk": "0-4cJX2dsLa-I9EM47AFdlAw"}, {"page": 6, "title": "Slam Dunk 01_006.jpg", "id": "0B_Fq1xsSZuWIYmRROHdSalh0Tmc", "rk": "0-GRH8ZAeHEnz8Mc3pux-pfg"}, {"page": 7, "title": "Slam Dunk 01_007.jpg", "id": "0B_Fq1xsSZuWIX0tWdWkwNk9HYW8", "rk": "0-Pv6SxyfD8TzTh4SfmtNfyA"}, {"page": 8, "title": "Slam Dunk 01_008.jpg", "id": "0B_Fq1xsSZuWISXFQWVlHN1c5T0U", "rk": "0-waZamzxdnYyiBCYUpc7Faw"}, {"page": 9, "title": "Slam Dunk 01_009.jpg", "id": "0B_Fq1xsSZuWIaF82MmQtSEpoanM", "rk": "0-6niJ7yk0IZ6nCw7xlnx8Sw"}, {"page": 10, "title": "Slam Dunk 01_010.jpg", "id": "0B_Fq1xsSZuWIbEI1ZjBsZElWQk0", "rk": "0-fzOmn8grstrQiu_PKJ-C_Q"}, {"page": 11, "title": "Slam Dunk 01_011.jpg", "id": "0B_Fq1xsSZuWIZ1FXdmRsUmROLXM", "rk": "0-F9EPFImTN092icVUlEOqCg"}, {"page": 12, "title": "Slam Dunk 01_012.jpg", "id": "0B_Fq1xsSZuWIUnJ0dHRxbTh0R2s", "rk": "0--nNkGi0dOTGQxlm4hzCwUQ"}, {"page": 13, "title": "Slam Dunk 01_013.jpg", "id": "0B_Fq1xsSZuWId1AwZzVSUUtJa1k", "rk": "0--427-Eo3OOh2eebKzTqGAg"}, {"page": 14, "title": "Slam Dunk 01_014.jpg", "id": "0B_Fq1xsSZuWIYzNYandBMVRWTFE", "rk": "0-5zIiGEFN1bMgGUcMO4X71g"}, {"page": 15, "title": "Slam Dunk 01_015.jpg", "id": "0B_Fq1xsSZuWIVTBKT1pkQ0U3bkU", "rk": "0-C6RV8zWDzzPLzlgVZhpcTA"}, {"page": 16, "title": "Slam Dunk 01_016.jpg", "id": "0B_Fq1xsSZuWIQXoxbGZueUNHYnc", "rk": "0-3GnspFNMUQxZp0bcKWKj0Q"}, {"page": 17, "title": "Slam Dunk 01_017.jpg", "id": "0B_Fq1xsSZuWIWWUwY1N4OTRYNGc", "rk": "0-khJyn8Iegqc1qg9s-CmgKg"}, {"page": 18, "title": "Slam Dunk 01_018.jpg", "id": "0B_Fq1xsSZuWIZzJiSEVCZXR4TVk", "rk": "0-UqksWxOgL8ivLRDR-jLmpA"}, {"page": 19, "title": "Slam Dunk 01_019.jpg", "id": "0B_Fq1xsSZuWIMjJMN1BQRktYR2c", "rk": "0-RQjKTtt_CjaWk93yDZu5dQ"}, {"page": 20, "title": "Slam Dunk 01_020.jpg", "id": "0B_Fq1xsSZuWIVGxaOW1nZEZHWEU", "rk": "0-klfQ4Ie6DPbV4AjBMqULYA"}, {"page": 21, "title": "Slam Dunk 01_021.jpg", "id": "0B_Fq1xsSZuWIUHoyTG41OGxaREU", "rk": "0-Ox9CGG9FGHOrXNlbI-o03g"}, {"page": 22, "title": "Slam Dunk 01_022.jpg", "id": "0B_Fq1xsSZuWITGNQaFlkYzBjT3M", "rk": "0-5_GD7TNEotSIhmd55iBSzg"}, {"page": 23, "title": "Slam Dunk 01_023.jpg", "id": "0B_Fq1xsSZuWIeWJyLWViQmNPSU0", "rk": "0-e2Mqno0pH9TnZY6L8eygrw"}, {"page": 24, "title": "Slam Dunk 01_024.jpg", "id": "0B_Fq1xsSZuWIR1dzTmJCQ2ozQUE", "rk": "0-1qt-MCWyrvQt92KXUnLvjQ"}, {"page": 25, "title": "Slam Dunk 01_025.jpg", "id": "0B_Fq1xsSZuWIRmNQaHc1bjN6YW8", "rk": "0-RQ3GMC24krgcl08AyQ7BNQ"}, {"page": 26, "title": "Slam Dunk 01_026.jpg", "id": "0B_Fq1xsSZuWILVU2ZjNqbFhZQk0", "rk": "0-QzHyYfaiiTT-l2Yy0nNOrQ"}, {"page": 27, "title": "Slam Dunk 01_027.jpg", "id": "0B_Fq1xsSZuWITFRxeC11TWxIclU", "rk": "0-rkArSu2_XqbrNH4nRnojMw"}, {"page": 28, "title": "Slam Dunk 01_028.jpg", "id": "0B_Fq1xsSZuWIdGNJQmpzUVdhVm8", "rk": "0-PDsI5Ie565U8KXsql_pptw"}, {"page": 29, "title": "Slam Dunk 01_029.jpg", "id": "0B_Fq1xsSZuWILXF1cnpYNzBHTkU", "rk": "0-_w3c1r1vZSpuGgI6WwLwZA"}, {"page": 30, "title": "Slam Dunk 01_030.jpg", "id": "0B_Fq1xsSZuWIaTZ3OE95bW42clU", "rk": "0-3BFIdj3XONYBCDI-Tq_YLA"}, {"page": 31, "title": "Slam Dunk 01_031.jpg", "id": "0B_Fq1xsSZuWIVENqSFZTNTJkclU", "rk": "0-KpNP-qNLHzwtcpQk0iNXSQ"}, {"page": 32, "title": "Slam Dunk 01_032.jpg", "id": "0B_Fq1xsSZuWIZkxRMjh6ejVFMjg", "rk": "0-4J8MzQlLLzR12218ipfSTA"}, {"page": 33, "title": "Slam Dunk 01_033.jpg", "id": "0B_Fq1xsSZuWITGhiMk1wY2xxd1k", "rk": "0-5cXt9bGVV_fFIbmPo19N3w"}, {"page": 34, "title": "Slam Dunk 01_034.jpg", "id": "0B_Fq1xsSZuWIa0lsaklOb0hqMXM", "rk": "0-sw5KXXqGxTkKQj9eU6r0Zg"}, {"page": 35, "title": "Slam Dunk 01_035.jpg", "id": "0B_Fq1xsSZuWILVFEY3hFcHlhU00", "rk": "0-2ouZAY7vhM9uW10swXlrTA"}, {"page": 36, "title": "Slam Dunk 01_036.jpg", "id": "0B_Fq1xsSZuWId1pRbHROc1daNG8", "rk": "0-bzL6qXeiPOlQT5dMYV30JQ"}, {"page": 37, "title": "Slam Dunk 01_037.jpg", "id": "0B_Fq1xsSZuWIb0VmbVdoUkgwamM", "rk": "0-B6Uce364hFTAXSV4Guqsrw"}, {"page": 38, "title": "Slam Dunk 01_038.jpg", "id": "0B_Fq1xsSZuWIampYbWVoVzFsbzg", "rk": "0-BbXxlAVe4mpdxcCTbGh1RQ"}, {"page": 39, "title": "Slam Dunk 01_039.jpg", "id": "0B_Fq1xsSZuWISjB3Q2N1UlMtQTQ", "rk": "0-pk8HRx0zKOp5BvrUXffxHw"}, {"page": 40, "title": "Slam Dunk 01_040.jpg", "id": "0B_Fq1xsSZuWILTdYX2kzS19tUzQ", "rk": "0-ThURi1CaC2Yvy1TIZMVo6g"}, {"page": 41, "title": "Slam Dunk 01_041.jpg", "id": "0B_Fq1xsSZuWIQl8xTXZWeEFZSzg", "rk": "0-PY-VmdR2GEa_vZnXEpoqdA"}, {"page": 42, "title": "Slam Dunk 01_042.jpg", "id": "0B_Fq1xsSZuWIQV96S09jWkNmUU0", "rk": "0-gmLJvh38HLodkcMw-g__Ig"}, {"page": 43, "title": "Slam Dunk 01_043.jpg", "id": "0B_Fq1xsSZuWIWUxfRkVkR3lTNnc", "rk": "0-6TE_2NPQkTrI94_bP6y7CA"}, {"page": 44, "title": "Slam Dunk 01_044.jpg", "id": "0B_Fq1xsSZuWIbTRVczdsbDFFLVU", "rk": "0-9to71PmMlI4rzx-aTO1F_g"}, {"page": 45, "title": "Slam Dunk 01_045.jpg", "id": "0B_Fq1xsSZuWIZXlsLW8wNV9NWDg", "rk": "0-9h6zycKjh7YumyBkM1SZrw"}, {"page": 46, "title": "Slam Dunk 01_046.jpg", "id": "0B_Fq1xsSZuWIcEp2THFMR3BRc2s", "rk": "0-SLvz-fwnE49VdvzDSvbvlg"}, {"page": 47, "title": "Slam Dunk 01_047.jpg", "id": "0B_Fq1xsSZuWIX1BVeGlteFJfWVU", "rk": "0-v8eHgFIAOZQzZ3su-CGsjQ"}, {"page": 48, "title": "Slam Dunk 01_048.jpg", "id": "0B_Fq1xsSZuWIbjZCdE94NUhCMTA", "rk": "0-bDJo88KVwSsbwxOTx0n0eA"}, {"page": 49, "title": "Slam Dunk 01_049.jpg", "id": "0B_Fq1xsSZuWIaXcwUkNNTnBnczg", "rk": "0-1oFV7cJp7ZL9ijM6vxdW-w"}, {"page": 50, "title": "Slam Dunk 01_050.jpg", "id": "0B_Fq1xsSZuWIWlBwQzdVRDNSWW8", "rk": "0-WTJHpUyyfsgkaLZe4onh-g"}, {"page": 51, "title": "Slam Dunk 01_051.jpg", "id": "0B_Fq1xsSZuWIVEZZVlNGblZoZUk", "rk": "0-zKVXRsoR3kpfRr6j3PduUg"}, {"page": 52, "title": "Slam Dunk 01_052.jpg", "id": "0B_Fq1xsSZuWIVTdjd2ZxTU5CTUk", "rk": "0-qiIMRzDKTT36NTZIMz0qDw"}, {"page": 53, "title": "Slam Dunk 01_053.jpg", "id": "0B_Fq1xsSZuWIU0ZSZjJuVlNqb0U", "rk": "0-sl6XtOHcJvxAe0AV4xlVQg"}, {"page": 54, "title": "Slam Dunk 01_054.jpg", "id": "0B_Fq1xsSZuWIWGFtdVdKd0ZxUG8", "rk": "0-TkosALRyE8TQQjPz_AerPA"}, {"page": 55, "title": "Slam Dunk 01_055.jpg", "id": "0B_Fq1xsSZuWISzJfa2NBaUh1WDQ", "rk": "0-Swq6MA9Dd9ei4p-b6T7bqw"}, {"page": 56, "title": "Slam Dunk 01_056.jpg", "id": "0B_Fq1xsSZuWIU3N3dGpKdFNEaVE", "rk": "0-qRJnWiI1QG6Rnw0H0odNig"}, {"page": 57, "title": "Slam Dunk 01_057.jpg", "id": "0B_Fq1xsSZuWISFpYck1SX0JGQXM", "rk": "0-3TMa0vJNRPG0vtUnO3WB9A"}, {"page": 58, "title": "Slam Dunk 01_058.jpg", "id": "0B_Fq1xsSZuWIdVd6NlRsOHFPMUU", "rk": "0-qb4U3CzrIh0be6Vem7nhng"}, {"page": 59, "title": "Slam Dunk 01_059.jpg", "id": "0B_Fq1xsSZuWINEYxUk9LcmI1TE0", "rk": "0-6wbg5LZz5ucE6NG04C_WnA"}, {"page": 60, "title": "Slam Dunk 01_060.jpg", "id": "0B_Fq1xsSZuWIN196QmRVUHJEYU0", "rk": "0-2liZHOvw0BqOEmQPsOLmRA"}, {"page": 61, "title": "Slam Dunk 01_061.jpg", "id": "0B_Fq1xsSZuWISFBIdjdiZFYxbGc", "rk": "0-R3ZXJZkJx7G6FlNF7Z3WBw"}, {"page": 62, "title": "Slam Dunk 01_062.jpg", "id": "0B_Fq1xsSZuWId19ka3l6M0xISWc", "rk": "0-z1zdB-Ox7mCr1hsYUWM4ag"}, {"page": 63, "title": "Slam Dunk 01_063.jpg", "id": "0B_Fq1xsSZuWIalFPNzdFbkhwUTA", "rk": "0-irR-IMX0wx8A3Qq-xQkrXw"}, {"page": 64, "title": "Slam Dunk 01_064.jpg", "id": "0B_Fq1xsSZuWIQUZYeDdRU0VhaFk", "rk": "0-wSsb8y-_H4fuP5Np5baSPA"}, {"page": 65, "title": "Slam Dunk 01_065.jpg", "id": "0B_Fq1xsSZuWIUm5vRl9iZGRDQXM", "rk": "0-ylKJZD7YHa8B6OGKfMFbBw"}, {"page": 66, "title": "Slam Dunk 01_066.jpg", "id": "0B_Fq1xsSZuWINVgySkM2YVZ6ZlE", "rk": "0-50JgSLAaWrrRnrWtypWI5w"}, {"page": 67, "title": "Slam Dunk 01_067.jpg", "id": "0B_Fq1xsSZuWIQ2Q0QjNLUGhqeHc", "rk": "0-7lxmD5Atzj-TWj-S2eIZ-g"}, {"page": 68, "title": "Slam Dunk 01_068.jpg", "id": "0B_Fq1xsSZuWIVUoyeEJwbXNqME0", "rk": "0-N9gdR9a_UJYh642sa1rmaA"}, {"page": 69, "title": "Slam Dunk 01_069.jpg", "id": "0B_Fq1xsSZuWIenJ5Rzk3LWVwY0E", "rk": "0-shbmR3UDzLJCvXXW7ffkDQ"}, {"page": 70, "title": "Slam Dunk 01_070.jpg", "id": "0B_Fq1xsSZuWIYzd6T1R5VlNFWVU", "rk": "0-SyRfBXO430JU8RneexkHnQ"}, {"page": 71, "title": "Slam Dunk 01_071.jpg", "id": "0B_Fq1xsSZuWIVzRnWGo0LWQyNFU", "rk": "0-GgWnFr4H6VNma60GVuqndA"}, {"page": 72, "title": "Slam Dunk 01_072.jpg", "id": "0B_Fq1xsSZuWIWS1nLVRCRkF3RWM", "rk": "0-mVZbIsJJvaq8FleiiYbxjw"}, {"page": 73, "title": "Slam Dunk 01_073.jpg", "id": "0B_Fq1xsSZuWIcjE4S0pHY2dxeEU", "rk": "0-cKrGOaT6KxFeNGFejjegjg"}, {"page": 74, "title": "Slam Dunk 01_074.jpg", "id": "0B_Fq1xsSZuWIbjFNMUROTEF4ZzQ", "rk": "0-_yg49h635srLeXPkqX6XpA"}, {"page": 75, "title": "Slam Dunk 01_075.jpg", "id": "0B_Fq1xsSZuWIUmEtekQ1Sm1EZk0", "rk": "0-yyynHKJVnLFnsBwc6XScnw"}, {"page": 76, "title": "Slam Dunk 01_076.jpg", "id": "0B_Fq1xsSZuWIVHhQRWI1ZFZ1YWs", "rk": "0-djPAHU8fj5JSRGuH8o-6kw"}, {"page": 77, "title": "Slam Dunk 01_077.jpg", "id": "0B_Fq1xsSZuWIbGxyQV90MGl5V1k", "rk": "0-GplhMigat_WNaIL08789Mw"}, {"page": 78, "title": "Slam Dunk 01_078.jpg", "id": "0B_Fq1xsSZuWIZnoyZDhoMXBaYlE", "rk": "0-ffzZltbiFlb5svF_XNtcqQ"}, {"page": 79, "title": "Slam Dunk 01_079.jpg", "id": "0B_Fq1xsSZuWIV2pjS3VsbGNLelU", "rk": "0-YhSRGNAhHrfJxX4PXdOpRg"}, {"page": 80, "title": "Slam Dunk 01_080.jpg", "id": "0B_Fq1xsSZuWISmRUOU83b3NRN1E", "rk": "0-vAPmZ6eEFFCrsWl5XimuLQ"}, {"page": 81, "title": "Slam Dunk 01_081.jpg", "id": "0B_Fq1xsSZuWINTV6c3hxeVNlMlE", "rk": "0-kOTX8lDIiZE0LD6RwVRtAQ"}, {"page": 82, "title": "Slam Dunk 01_082.jpg", "id": "0B_Fq1xsSZuWIaUxSXzdUcGk0U1k", "rk": "0-eIbDTqgerabbrv6Q2ngDVQ"}, {"page": 83, "title": "Slam Dunk 01_083.jpg", "id": "0B_Fq1xsSZuWIUUhOb2lEUkxpUk0", "rk": "0-ZVebZ0vwhfGtB28KFC7fUg"}, {"page": 84, "title": "Slam Dunk 01_084.jpg", "id": "0B_Fq1xsSZuWIZDZaSkhQMzVKR0k", "rk": "0-6o5f1ZrG-6s_yJKJFddQJA"}, {"page": 85, "title": "Slam Dunk 01_085.jpg", "id": "0B_Fq1xsSZuWIbVMtb1NkTVNXVnc", "rk": "0-uMaPH7LljvBnwv_a-eB4Rw"}, {"page": 86, "title": "Slam Dunk 01_086.jpg", "id": "0B_Fq1xsSZuWIcTRlVl9pYnNVY2s", "rk": "0-55VCVWq9lLwta5HCzBHjZg"}, {"page": 87, "title": "Slam Dunk 01_087.jpg", "id": "0B_Fq1xsSZuWIdGx5Y25YZ0dXR28", "rk": "0-Rh6_X9g6yft9AgvfM-4ZbA"}, {"page": 88, "title": "Slam Dunk 01_088.jpg", "id": "0B_Fq1xsSZuWIOWZxbEVjSGl5Njg", "rk": "0-Ue3a7Lq-kRe2p0XoAhescg"}, {"page": 89, "title": "Slam Dunk 01_089.jpg", "id": "0B_Fq1xsSZuWIdUNaRmpWQzNjUzA", "rk": "0-Tj2VG0tltzElQGBnIaGiqQ"}, {"page": 90, "title": "Slam Dunk 01_090.jpg", "id": "0B_Fq1xsSZuWIeTA2SW8zMUNwVzg", "rk": "0-fkdDQOma4vUYQHzwZafXXQ"}, {"page": 91, "title": "Slam Dunk 01_091.jpg", "id": "0B_Fq1xsSZuWIaXF4anlQc1pOaGs", "rk": "0-MuOiMI05LbZacZ0VrpLvZw"}, {"page": 92, "title": "Slam Dunk 01_092.jpg", "id": "0B_Fq1xsSZuWIcTB1aWZHSUl0UTA", "rk": "0-BiMhejP0gPPfzGGNzlJn-A"}, {"page": 93, "title": "Slam Dunk 01_093.jpg", "id": "0B_Fq1xsSZuWIQ3RfMUtFODE0MXc", "rk": "0--QgHcLRl1cu9NrK1p-DnbA"}, {"page": 94, "title": "Slam Dunk 01_094.jpg", "id": "0B_Fq1xsSZuWIZTduOHZlV0tpSnM", "rk": "0-g8srt-6kNHF_7YlRpgcHsg"}, {"page": 95, "title": "Slam Dunk 01_095.jpg", "id": "0B_Fq1xsSZuWIYmpIa2JzTnY0aUk", "rk": "0-2K7egXkYrJF3V-pS9_7akQ"}, {"page": 96, "title": "Slam Dunk 01_096.jpg", "id": "0B_Fq1xsSZuWIRHJ2enlQWHJ5c1E", "rk": "0-wNFnwj9WQLn55RKRzAVsDw"}, {"page": 97, "title": "Slam Dunk 01_097.jpg", "id": "0B_Fq1xsSZuWIZG9HdnBfRlFfd1E", "rk": "0-PSNj20xPDjI2MDvWASeeDA"}, {"page": 98, "title": "Slam Dunk 01_098.jpg", "id": "0B_Fq1xsSZuWIUlZ2OTI3V0VTWVk", "rk": "0-8DyYHTF4sPJTPdDPKilkCw"}, {"page": 99, "title": "Slam Dunk 01_099.jpg", "id": "0B_Fq1xsSZuWIRm5rek5aaTMxazA", "rk": "0-zo7Rshif79HCaPmlNBU2Kw"}, {"page": 100, "title": "Slam Dunk 01_100.jpg", "id": "0B_Fq1xsSZuWIbTlqbmRyeXlfS28", "rk": "0-yYNWy4Ta9eX2pleQ2VWxCQ"}, {"page": 101, "title": "Slam Dunk 01_101.jpg", "id": "0B_Fq1xsSZuWIYTlUY3p4T1ZSemc", "rk": "0-cVhdNL-8rc8RaGVeommGvg"}, {"page": 102, "title": "Slam Dunk 01_102.jpg", "id": "0B_Fq1xsSZuWIdVBBaTV5VkZVemc", "rk": "0-2HWPfcfqpMnghTyklKdqsw"}, {"page": 103, "title": "Slam Dunk 01_103.jpg", "id": "0B_Fq1xsSZuWIdW1BUHQtbmRIZlE", "rk": "0-K4TOekM9eC0SOD7SsmQiiw"}, {"page": 104, "title": "Slam Dunk 01_104.jpg", "id": "0B_Fq1xsSZuWIXzl4bHNrNjhwZEE", "rk": "0-uvywRs3AjAE058rDe8bnfA"}, {"page": 105, "title": "Slam Dunk 01_105.jpg", "id": "0B_Fq1xsSZuWIRDFVbGNrVVp0Smc", "rk": "0-nd0A74GoG3JZK7tLnmnU7g"}, {"page": 106, "title": "Slam Dunk 01_106.jpg", "id": "0B_Fq1xsSZuWIMFd4ekhUbFJERFE", "rk": "0-aOJNnv6KWI2BVTF4Wt5_eg"}, {"page": 107, "title": "Slam Dunk 01_107.jpg", "id": "0B_Fq1xsSZuWIVVhsbXl5SzFnaEk", "rk": "0-TjeH-Ak0DQ_RMGvunudehQ"}, {"page": 108, "title": "Slam Dunk 01_108.jpg", "id": "0B_Fq1xsSZuWIZHN4MUZFWks1LVU", "rk": "0-3yfLPsNWk7Y7SIhg9_SYtQ"}, {"page": 109, "title": "Slam Dunk 01_109.jpg", "id": "0B_Fq1xsSZuWIWlVlVnZIckdrbGs", "rk": "0-CvEZqt1DqUHsY5K_uVnnXA"}, {"page": 110, "title": "Slam Dunk 01_110.jpg", "id": "0B_Fq1xsSZuWIU094SGFub0s4eEE", "rk": "0-xZqvrVpnsTngWaoRVwy0Pw"}, {"page": 111, "title": "Slam Dunk 01_111.jpg", "id": "0B_Fq1xsSZuWIbENKeFlFNkxGXzQ", "rk": "0-C8OoP6qnEweqxIOV4Lbzhg"}, {"page": 112, "title": "Slam Dunk 01_112.jpg", "id": "0B_Fq1xsSZuWIaFVHUmJTMkJ5UUE", "rk": "0-JNApg_NCRq01MlRIrj5TDA"}, {"page": 113, "title": "Slam Dunk 01_113.jpg", "id": "0B_Fq1xsSZuWIRmxTNHl1YnJFZ00", "rk": "0-OUn-bdPxwkW_IrsIxl3W1Q"}, {"page": 114, "title": "Slam Dunk 01_114.jpg", "id": "0B_Fq1xsSZuWIQndPaVN1MjFtNlU", "rk": "0-GyUHrbZWyUHh8zLU5urTOA"}, {"page": 115, "title": "Slam Dunk 01_115.jpg", "id": "0B_Fq1xsSZuWIYVhNRlkxSmltVDA", "rk": "0-ZccWar9XyHrH2Zw48DmOyg"}, {"page": 116, "title": "Slam Dunk 01_116.jpg", "id": "0B_Fq1xsSZuWIaUhGVW5DUXg2Q2c", "rk": "0-j-V8xftQY9HCdApGrTKQJw"}, {"page": 117, "title": "Slam Dunk 01_117.jpg", "id": "0B_Fq1xsSZuWIODJfRzY4UHpqVW8", "rk": "0-NQ5ctYQLRq9-86ap2pqjVg"}, {"page": 118, "title": "Slam Dunk 01_118.jpg", "id": "0B_Fq1xsSZuWIQm9JY2lpdGFYYVE", "rk": "0-PoC3tBGW765uBmXo56XnKw"}];
+
+    // State Variables
+    let currentPage = parseInt(localStorage.getItem('slamdunk_page') || '1', 10);
+    if (currentPage < 1 || currentPage > PAGES_DATA.length) currentPage = 1;
+
+    let viewMode = localStorage.getItem('slamdunk_view_mode') || 'double'; // 'single', 'double', 'scroll'
+    let readingDirection = localStorage.getItem('slamdunk_direction') || 'rtl'; // 'rtl' (우->좌 만화 원작), 'ltr' (좌->우)
+    let fitMode = localStorage.getItem('slamdunk_fit_mode') || 'height'; // 'height', 'width'
+    let isToolbarVisible = true;
+    let isDrawerOpen = false;
+
+    // DOM Elements
+    const header = document.getElementById('main-header');
+    const footer = document.getElementById('main-footer');
+    const viewport = document.getElementById('viewer-viewport');
+    const pageContainer = document.getElementById('page-container');
+    const pageSlider = document.getElementById('page-slider');
+    const pageInput = document.getElementById('page-input');
+    const totalCountSpan = document.getElementById('total-page-count');
+    const thumbDrawer = document.getElementById('thumb-drawer');
+    const drawerGrid = document.getElementById('drawer-grid');
+    const backdrop = document.getElementById('backdrop');
+    const spinner = document.getElementById('loading-spinner');
+    const toast = document.getElementById('toast');
+    const helpModal = document.getElementById('help-modal');
+
+    const btnModeSingle = document.getElementById('btn-mode-single');
+    const btnModeDouble = document.getElementById('btn-mode-double');
+    const btnModeScroll = document.getElementById('btn-mode-scroll');
+    const btnDirection = document.getElementById('btn-direction');
+    const directionLabel = document.getElementById('direction-label');
+    const btnFitToggle = document.getElementById('btn-fit-toggle');
+
+    // Build Image URLs with fallback options
+    function getImageUrl(id, rk, quality = 'high') {
+      const sizeParam = quality === 'thumb' ? 'w300' : 'w1920';
+      const rkParam = rk ? `&resourcekey=${rk}` : '';
+      return `https://drive.google.com/thumbnail?id=${id}&sz=${sizeParam}${rkParam}`;
+    }
+
+    function getFallbackUrl(id, rk) {
+      const rkParam = rk ? `?resourcekey=${rk}` : '';
+      return `https://lh3.googleusercontent.com/d/${id}${rkParam}`;
+    }
+
+    function showToast(msg, duration = 1800) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    // Preload adjacent images
+    function preloadPage(pageNum) {
+      if (pageNum >= 1 && pageNum <= PAGES_DATA.length) {
+        const item = PAGES_DATA[pageNum - 1];
+        const img = new Image();
+        img.src = getImageUrl(item.id, item.rk);
+      }
+    }
+
+    function preloadNearby() {
+      if (viewMode === 'double') {
+        preloadPage(currentPage + 2);
+        preloadPage(currentPage + 3);
+        preloadPage(currentPage - 2);
+      } else {
+        preloadPage(currentPage + 1);
+        preloadPage(currentPage + 2);
+        preloadPage(currentPage - 1);
+      }
+    }
+
+    // Render Pages depending on viewMode
+    function render() {
+      localStorage.setItem('slamdunk_page', currentPage);
+      pageSlider.value = currentPage;
+      pageInput.value = currentPage;
+
+      // Update View Buttons
+      btnModeSingle.classList.toggle('btn-active', viewMode === 'single');
+      btnModeDouble.classList.toggle('btn-active', viewMode === 'double');
+      btnModeScroll.classList.toggle('btn-active', viewMode === 'scroll');
+
+      // Update Reading Direction UI
+      btnDirection.style.display = viewMode === 'scroll' ? 'none' : 'inline-flex';
+      directionLabel.textContent = readingDirection === 'rtl' ? '우→좌' : '좌→우';
+
+      // Update viewport class
+      viewport.className = viewMode === 'scroll' ? 'mode-scroll' : `fit-${fitMode}`;
+
+      if (viewMode === 'scroll') {
+        renderScrollMode();
+      } else if (viewMode === 'single') {
+        renderSingleMode();
+      } else {
+        renderDoubleMode();
+      }
+
+      updateThumbnailActiveState();
+      preloadNearby();
+    }
+
+    function createPageImg(pageObj) {
+      const img = document.createElement('img');
+      img.className = 'manga-page';
+      img.alt = `페이지 ${pageObj.page}`;
+      img.src = getImageUrl(pageObj.id, pageObj.rk);
+      img.onerror = function() {
+        // Fallback to Google CDN format
+        if (!this.dataset.fallbackTried) {
+          this.dataset.fallbackTried = 'true';
+          this.src = getFallbackUrl(pageObj.id, pageObj.rk);
+        }
+      };
+      return img;
+    }
+
+    function renderSingleMode() {
+      pageContainer.innerHTML = '';
+      spinner.style.display = 'block';
+
+      const pageObj = PAGES_DATA[currentPage - 1];
+      const img = createPageImg(pageObj);
+      img.onload = () => { spinner.style.display = 'none'; };
+      img.onerror = () => { spinner.style.display = 'none'; };
+      pageContainer.appendChild(img);
+    }
+
+    function renderDoubleMode() {
+      pageContainer.innerHTML = '';
+      spinner.style.display = 'block';
+
+      // First page (Page 1) is typically the single solo cover!
+      if (currentPage === 1) {
+        const pageObj = PAGES_DATA[0];
+        const img = createPageImg(pageObj);
+        img.onload = () => { spinner.style.display = 'none'; };
+        pageContainer.appendChild(img);
+        return;
+      }
+
+      // Calculate paired pages (e.g. 2 & 3, 4 & 5, ...)
+      let p1Num = currentPage % 2 === 0 ? currentPage : currentPage - 1;
+      let p2Num = p1Num + 1;
+
+      const p1Obj = PAGES_DATA[p1Num - 1];
+      const p2Obj = p2Num <= PAGES_DATA.length ? PAGES_DATA[p2Num - 1] : null;
+
+      let loadedCount = 0;
+      const totalToLoad = p2Obj ? 2 : 1;
+      const onLoadCheck = () => {
+        loadedCount++;
+        if (loadedCount >= totalToLoad) spinner.style.display = 'none';
+      };
+
+      const img1 = createPageImg(p1Obj);
+      img1.onload = onLoadCheck;
+
+      let img2 = null;
+      if (p2Obj) {
+        img2 = createPageImg(p2Obj);
+        img2.onload = onLoadCheck;
+      }
+
+      // Reading Direction in Manga:
+      // In RTL (우->좌), the earlier page (e.g. Page 2) goes on the RIGHT, and the later page (Page 3) goes on the LEFT!
+      // In LTR (좌->우), earlier page on LEFT, later page on RIGHT.
+      if (readingDirection === 'rtl') {
+        if (img2) pageContainer.appendChild(img2); // Page 3 on left
+        pageContainer.appendChild(img1);          // Page 2 on right
+      } else {
+        pageContainer.appendChild(img1);          // Page 2 on left
+        if (img2) pageContainer.appendChild(img2); // Page 3 on right
+      }
+    }
+
+    let scrollModeBuilt = false;
+    function renderScrollMode() {
+      if (scrollModeBuilt) {
+        scrollToCurrentPageInScrollMode();
+        return;
+      }
+
+      pageContainer.innerHTML = '';
+      spinner.style.display = 'block';
+
+      // Fragment to build all pages
+      const fragment = document.createDocumentFragment();
+      PAGES_DATA.forEach((p, idx) => {
+        const img = createPageImg(p);
+        img.dataset.page = p.page;
+        img.loading = idx < 5 ? 'eager' : 'lazy';
+        fragment.appendChild(img);
+      });
+
+      pageContainer.appendChild(fragment);
+      scrollModeBuilt = true;
+      spinner.style.display = 'none';
+
+      // Observe scrolling to update currentPage
+      setupScrollObserver();
+      setTimeout(scrollToCurrentPageInScrollMode, 100);
+    }
+
+    function scrollToCurrentPageInScrollMode() {
+      const targetImg = pageContainer.querySelector(`img[data-page="${currentPage}"]`);
+      if (targetImg) {
+        targetImg.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    let scrollObserver = null;
+    function setupScrollObserver() {
+      if (scrollObserver) scrollObserver.disconnect();
+      scrollObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const p = parseInt(entry.target.dataset.page, 10);
+            if (p && viewMode === 'scroll') {
+              currentPage = p;
+              pageSlider.value = p;
+              pageInput.value = p;
+              localStorage.setItem('slamdunk_page', p);
+              updateThumbnailActiveState();
+            }
+          }
+        });
+      }, { root: viewport, threshold: 0.5 });
+
+      pageContainer.querySelectorAll('img').forEach(img => scrollObserver.observe(img));
+    }
+
+    // Navigation functions
+    function goToPage(page) {
+      if (page < 1) page = 1;
+      if (page > PAGES_DATA.length) page = PAGES_DATA.length;
+      currentPage = page;
+      render();
+    }
+
+    function nextPage() {
+      if (viewMode === 'double') {
+        if (currentPage === 1) {
+          goToPage(2);
+        } else {
+          goToPage(currentPage + 2);
+        }
+      } else {
+        goToPage(currentPage + 1);
+      }
+    }
+
+    function prevPage() {
+      if (viewMode === 'double') {
+        if (currentPage <= 3) {
+          goToPage(1);
+        } else {
+          goToPage(currentPage - 2);
+        }
+      } else {
+        goToPage(currentPage - 1);
+      }
+    }
+
+    // Toolbar visibility toggle
+    function toggleToolbars(forceState) {
+      isToolbarVisible = forceState !== undefined ? forceState : !isToolbarVisible;
+      header.classList.toggle('hidden', !isToolbarVisible);
+      footer.classList.toggle('hidden', !isToolbarVisible);
+    }
+
+    // Build Thumbnail Drawer
+    function initThumbnails() {
+      totalCountSpan.textContent = PAGES_DATA.length;
+      pageSlider.max = PAGES_DATA.length;
+      pageInput.max = PAGES_DATA.length;
+
+      const fragment = document.createDocumentFragment();
+      PAGES_DATA.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'thumb-card';
+        card.id = `thumb-page-${p.page}`;
+
+        const img = document.createElement('img');
+        img.className = 'thumb-img';
+        img.alt = `p.${p.page}`;
+        img.loading = 'lazy';
+        img.src = getImageUrl(p.id, p.rk, 'thumb');
+
+        const label = document.createElement('div');
+        label.className = 'thumb-label';
+        label.textContent = `${p.page} 쪽`;
+
+        card.appendChild(img);
+        card.appendChild(label);
+
+        card.addEventListener('click', () => {
+          goToPage(p.page);
+          closeDrawer();
+        });
+
+        fragment.appendChild(card);
+      });
+      drawerGrid.appendChild(fragment);
+    }
+
+    function updateThumbnailActiveState() {
+      const prevActive = drawerGrid.querySelector('.thumb-card.active');
+      if (prevActive) prevActive.classList.remove('active');
+
+      const currentCard = document.getElementById(`thumb-page-${currentPage}`);
+      if (currentCard) {
+        currentCard.classList.add('active');
+        if (isDrawerOpen) {
+          currentCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    }
+
+    function openDrawer() {
+      isDrawerOpen = true;
+      thumbDrawer.classList.add('open');
+      backdrop.classList.add('show');
+      updateThumbnailActiveState();
+    }
+
+    function closeDrawer() {
+      isDrawerOpen = false;
+      thumbDrawer.classList.remove('open');
+      backdrop.classList.remove('show');
+    }
+
+    // Fullscreen Toggle
+    function toggleFullscreen() {
+      const fsIconEnter = document.getElementById('fs-icon-enter');
+      const fsIconExit = document.getElementById('fs-icon-exit');
+
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().then(() => {
+          fsIconEnter.style.display = 'none';
+          fsIconExit.style.display = 'block';
+          showToast('전체화면 모드 시작');
+        }).catch(err => console.log(err));
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().then(() => {
+            fsIconEnter.style.display = 'block';
+            fsIconExit.style.display = 'none';
+          });
+        }
+      }
+    }
+
+    // Event Listeners Setup
+    function setupEvents() {
+      // Page turning zones (respects reading direction in double/single mode!)
+      document.getElementById('zone-prev').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (readingDirection === 'rtl') nextPage(); else prevPage();
+      });
+
+      document.getElementById('zone-next').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (readingDirection === 'rtl') prevPage(); else nextPage();
+      });
+
+      document.getElementById('zone-center').addEventListener('click', () => {
+        toggleToolbars();
+      });
+
+      // Footer Navigation Buttons
+      document.getElementById('btn-prev').addEventListener('click', prevPage);
+      document.getElementById('btn-next').addEventListener('click', nextPage);
+      document.getElementById('btn-first').addEventListener('click', () => goToPage(1));
+      document.getElementById('btn-last').addEventListener('click', () => goToPage(PAGES_DATA.length));
+
+      // Slider & Input Change
+      pageSlider.addEventListener('input', (e) => {
+        goToPage(parseInt(e.target.value, 10));
+      });
+
+      pageInput.addEventListener('change', (e) => {
+        let p = parseInt(e.target.value, 10);
+        if (isNaN(p)) p = currentPage;
+        goToPage(p);
+      });
+
+      // View Mode Buttons
+      btnModeSingle.addEventListener('click', () => {
+        viewMode = 'single';
+        scrollModeBuilt = false;
+        localStorage.setItem('slamdunk_view_mode', viewMode);
+        render();
+        showToast('단면 보기 모드');
+      });
+
+      btnModeDouble.addEventListener('click', () => {
+        viewMode = 'double';
+        scrollModeBuilt = false;
+        localStorage.setItem('slamdunk_view_mode', viewMode);
+        render();
+        showToast('양면 펼쳐보기 모드');
+      });
+
+      btnModeScroll.addEventListener('click', () => {
+        viewMode = 'scroll';
+        localStorage.setItem('slamdunk_view_mode', viewMode);
+        render();
+        showToast('연속 스크롤 모드');
+      });
+
+      // Direction Toggle
+      btnDirection.addEventListener('click', () => {
+        readingDirection = readingDirection === 'rtl' ? 'ltr' : 'rtl';
+        localStorage.setItem('slamdunk_direction', readingDirection);
+        render();
+        showToast(readingDirection === 'rtl' ? '우→좌 읽기 (만화 원작 방향)' : '좌→우 읽기 (일반 방향)');
+      });
+
+      // Fit Mode Toggle
+      btnFitToggle.addEventListener('click', () => {
+        if (viewMode === 'scroll') return;
+        fitMode = fitMode === 'height' ? 'width' : 'height';
+        localStorage.setItem('slamdunk_fit_mode', fitMode);
+        viewport.className = `fit-${fitMode}`;
+        showToast(fitMode === 'height' ? '화면 높이에 맞춤' : '화면 너비에 맞춤');
+      });
+
+      // Drawer open/close
+      document.getElementById('btn-toggle-drawer').addEventListener('click', openDrawer);
+      document.getElementById('btn-close-drawer').addEventListener('click', closeDrawer);
+      backdrop.addEventListener('click', () => {
+        closeDrawer();
+        helpModal.classList.remove('open');
+      });
+
+      // Help Modal
+      document.getElementById('btn-help').addEventListener('click', () => {
+        helpModal.classList.add('open');
+        backdrop.classList.add('show');
+      });
+
+      document.getElementById('btn-close-modal').addEventListener('click', () => {
+        helpModal.classList.remove('open');
+        if (!isDrawerOpen) backdrop.classList.remove('show');
+      });
+
+      // Fullscreen
+      document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+
+      // Keyboard Shortcuts
+      window.addEventListener('keydown', (e) => {
+        if (helpModal.classList.contains('open') && e.key === 'Escape') {
+          helpModal.classList.remove('open');
+          backdrop.classList.remove('show');
+          return;
+        }
+
+        if (isDrawerOpen && e.key === 'Escape') {
+          closeDrawer();
+          return;
+        }
+
+        if (document.activeElement === pageInput) return;
+
+        switch (e.key) {
+          case 'ArrowRight':
+          case 'd':
+          case 'D':
+            if (readingDirection === 'rtl') prevPage(); else nextPage();
+            break;
+          case 'ArrowLeft':
+          case 'a':
+          case 'A':
+            if (readingDirection === 'rtl') nextPage(); else prevPage();
+            break;
+          case ' ': // Spacebar
+            if (e.shiftKey) prevPage(); else nextPage();
+            e.preventDefault();
+            break;
+          case '1':
+            btnModeSingle.click();
+            break;
+          case '2':
+            btnModeDouble.click();
+            break;
+          case '3':
+            btnModeScroll.click();
+            break;
+          case 'f':
+          case 'F':
+            toggleFullscreen();
+            break;
+          case 't':
+          case 'T':
+          case 'm':
+          case 'M':
+            if (isDrawerOpen) closeDrawer(); else openDrawer();
+            break;
+          case 'h':
+          case 'H':
+            toggleToolbars();
+            break;
+          case 'Home':
+            goToPage(1);
+            break;
+          case 'End':
+            goToPage(PAGES_DATA.length);
+            break;
+          case '?':
+            helpModal.classList.toggle('open');
+            backdrop.classList.toggle('show');
+            break;
+        }
+      });
+
+      // Swipe Gestures for Mobile
+      let touchStartX = 0;
+      let touchStartY = 0;
+      viewport.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+        }
+      }, { passive: true });
+
+      viewport.addEventListener('touchend', (e) => {
+        if (viewMode === 'scroll') return;
+        if (e.changedTouches.length === 1) {
+          const deltaX = e.changedTouches[0].clientX - touchStartX;
+          const deltaY = e.changedTouches[0].clientY - touchStartY;
+          if (Math.abs(deltaX) > 50 && Math.abs(deltaY) < 60) {
+            if (deltaX < 0) {
+              // Swiped left
+              if (readingDirection === 'rtl') prevPage(); else nextPage();
+            } else {
+              // Swiped right
+              if (readingDirection === 'rtl') nextPage(); else prevPage();
+            }
+          }
+        }
+      }, { passive: true });
+    }
+
+    // Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      initThumbnails();
+      setupEvents();
+      render();
+
+      if (currentPage > 1) {
+        showToast(`${currentPage}쪽부터 이어보기 중입니다`);
+      }
+    });
+  </script>
+</body>
+</html>
