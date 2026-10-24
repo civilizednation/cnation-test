@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Floating Earbuds</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#F3EEE5}
+.bud{position:absolute;left:-100px;top:-100px;width:200px;height:340px;transform-origin:100px 100px}
+.bud svg{display:block}
+#case{position:absolute;left:0;top:0;width:420px;height:330px;transform-origin:210px 165px}
+.layer{position:absolute;left:0;top:0;width:1080px;height:1920px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs id="defs">
+    <radialGradient id="gHead" cx="0.36" cy="0.32" r="0.75">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="0.55" stop-color="#F4F1EC"/><stop offset="1" stop-color="#CFC9C1"/>
+    </radialGradient>
+    <linearGradient id="gStem" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#D3CEC6"/><stop offset="0.3" stop-color="#FFFFFF"/><stop offset="0.65" stop-color="#F3F0EB"/><stop offset="1" stop-color="#C9C3BB"/>
+    </linearGradient>
+    <linearGradient id="gCase" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#D6D1CA"/><stop offset="0.28" stop-color="#FFFFFF"/><stop offset="0.7" stop-color="#F5F2ED"/><stop offset="1" stop-color="#CCC6BE"/>
+    </linearGradient>
+    <linearGradient id="gCaseV" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/><stop offset="0.75" stop-color="#FFFFFF" stop-opacity="0"/><stop offset="1" stop-color="#B9B3AA" stop-opacity="0.45"/>
+    </linearGradient>
+    <clipPath id="cBody"><rect x="0" y="105" width="420" height="225"/></clipPath>
+    <clipPath id="cLid"><rect x="0" y="0" width="420" height="105"/></clipPath>
+  </defs>
+</svg>
+<div id="far" class="layer"></div>
+<div class="layer"><div id="shadow" style="position:absolute;left:0;top:0;width:440px;height:60px;border-radius:50%;background:rgba(90,70,45,.16);filter:blur(22px)"></div></div>
+<div id="caseLayer" class="layer">
+  <div id="case">
+    <svg id="interior" viewBox="0 0 420 330" width="420" height="330" style="position:absolute;left:0;top:0">
+      <rect x="18" y="88" width="384" height="40" rx="20" fill="#E4DFD8"/>
+      <ellipse cx="140" cy="106" rx="46" ry="11" fill="#C9C2B8"/>
+      <ellipse cx="280" cy="106" rx="46" ry="11" fill="#C9C2B8"/>
+    </svg>
+    <svg id="lid" viewBox="0 0 420 330" width="420" height="330" style="position:absolute;left:0;top:0;transform-origin:22px 105px">
+      <g clip-path="url(#cLid)"><rect width="420" height="330" rx="118" fill="url(#gCase)"/></g>
+      <rect x="20" y="102" width="380" height="3" fill="#D2CCC4"/>
+    </svg>
+    <div id="mid" style="position:absolute;left:0;top:0;width:420px;height:330px"></div>
+    <svg viewBox="0 0 420 330" width="420" height="330" style="position:absolute;left:0;top:0">
+      <g clip-path="url(#cBody)"><rect width="420" height="330" rx="118" fill="url(#gCase)"/><rect width="420" height="330" rx="118" fill="url(#gCaseV)"/></g>
+      <rect x="12" y="105" width="396" height="2.5" fill="#C8C1B8"/>
+      <ellipse cx="210" cy="214" rx="6" ry="6" fill="#E9E5DF"/>
+    </svg>
+  </div>
+</div>
+<div id="near" class="layer"></div>
+<script>
+const TAU=2*Math.PI, DUR=5;
+const $=id=>document.getElementById(id);
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const ease=x=>{x=clamp(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
+
+const FIL={};
+function filt(id){
+  $('defs').insertAdjacentHTML('beforeend',`<filter id="${id}" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="0 0"/></filter>`);
+  FIL[id]=$('defs').lastElementChild.firstElementChild;
+}
+function blur(el,id,sx,sy){
+  sx=Math.min(sx,60);sy=Math.min(sy,60);
+  if(sx<0.25&&sy<0.25){el.style.filter='none';return}
+  FIL[id].setAttribute('stdDeviation',`${sx.toFixed(2)} ${sy.toFixed(2)}`);
+  el.style.filter=`url(#${id})`;
+}
+
+// 이어폰 한 짝 (머리 중심이 원점)
+function budSVG(mirror){
+  return `<svg viewBox="-100 -100 200 340" width="200" height="340"><g transform="scale(${mirror?-1:1},1)">
+    <rect x="-23" y="18" width="46" height="212" rx="23" fill="url(#gStem)"/>
+    <ellipse cx="0" cy="226" rx="19" ry="5.5" fill="#B4AEA6"/>
+    <ellipse cx="0" cy="0" rx="62" ry="57" fill="url(#gHead)"/>
+    <ellipse cx="28" cy="-2" rx="12" ry="18" transform="rotate(-12 28 -2)" fill="#4A4744"/>
+    <ellipse cx="-30" cy="-37" rx="9" ry="3.6" transform="rotate(-25 -30 -37)" fill="#3A3835"/>
+    <ellipse cx="-22" cy="-24" rx="17" ry="9" transform="rotate(-30 -22 -24)" fill="#FFFFFF" opacity=".9"/>
+  </g></svg>`;
+}
+function mkBud(parent,mirror,id){const d=document.createElement('div');d.className='bud';d.innerHTML=budSVG(mirror);parent.appendChild(d);filt(id);return {el:d,id,parent}}
+
+// ── 케이스: 화면 아래쪽 가운데, 5초 주기로 천천히 떠 있음
+const CASE={x:540,y:1290};
+function caseOff(t){return {x:6*Math.sin(TAU*t/DUR+0.6), y:14*Math.sin(TAU*t/DUR), r:1.6*Math.sin(TAU*t/DUR+1.2)}}
+function lidOpen(t){return ease((t-0.25)/0.45)-ease((t-4.62)/0.36)}
+
+// ── 한 쌍의 비행 경로 (t, x, y, 크기, 회전). 케이스 기준 좌표에 케이스 흔들림을 더함
+const REST_L=[470,1302,0.62,-6], REST_R=[610,1302,0.62,6];
+const PATH_L=[[0.62,...REST_L],[0.98,430,1010,0.86,-22],[1.55,215,690,1.02,-48],[2.25,430,410,0.78,18],[2.95,770,600,1.45,72],[3.5,800,1040,1.85,122],[4.0,560,810,1.0,30],[4.33,474,1110,0.74,-4],[4.6,...REST_L]];
+const PATH_R=[[0.68,...REST_R],[1.02,690,985,0.95,24],[1.62,905,760,1.26,62],[2.3,700,500,0.62,-18],[3.0,330,560,0.72,-70],[3.6,235,880,1.32,-112],[4.05,650,850,1.0,8],[4.38,612,1110,0.74,5],[4.65,...REST_R]];
+// 시간 기준 3차 에르미트(양 끝 속도 0) → 매끄럽고 튀지 않음
+function track(P,t){
+  if(t<=P[0][0]) return P[0].slice(1);
+  const n=P.length;
+  if(t>=P[n-1][0]) return P[n-1].slice(1);
+  let i=0;while(P[i+1][0]<t)i++;
+  const a=P[i],b=P[i+1],h=b[0]-a[0],u=(t-a[0])/h;
+  const tan=k=>{if(k===0||k===n-1)return a.slice(1).map(()=>0);const p=P[k-1],q=P[k+1];return p.slice(1).map((v,j)=>(q[j+1]-v)/(q[0]-p[0]))};
+  const ma=tan(i),mb=tan(i+1);
+  const h00=2*u*u*u-3*u*u+1,h10=u*u*u-2*u*u+u,h01=-2*u*u*u+3*u*u,h11=u*u*u-u*u;
+  return a.slice(1).map((v,j)=>h00*v+h10*h*ma[j]+h01*b[j+1]+h11*h*mb[j]);
+}
+function budState(P,t){
+  const [x,y,s,r]=track(P,t), c=caseOff(t);
+  return {x:x+c.x,y:y+c.y,s,r:r+c.r};
+}
+
+// ── 멀리 떠다니는 작은 이어폰들 (5초 주기)
+const FAR=[
+  {cx:180,cy:330,ax:60,ay:40,kx:1,ky:1,p:0.3,s:0.36,r0:-30,rn:1,m:false},
+  {cx:900,cy:250,ax:50,ay:60,kx:1,ky:2,p:2.1,s:0.3,r0:40,rn:-1,m:true},
+  {cx:860,cy:1560,ax:70,ay:40,kx:2,ky:1,p:4.0,s:0.42,r0:200,rn:1,m:true},
+  {cx:170,cy:1620,ax:50,ay:50,kx:1,ky:1,p:1.2,s:0.34,r0:120,rn:-1,m:false},
+  {cx:120,cy:980,ax:40,ay:80,kx:1,ky:1,p:5.0,s:0.26,r0:-80,rn:1,m:true},
+  {cx:960,cy:1000,ax:40,ay:70,kx:1,ky:1,p:3.3,s:0.24,r0:60,rn:-1,m:false},
+];
+function farState(f,t){
+  const w=TAU*t/DUR;
+  return {x:f.cx+f.ax*Math.sin(f.kx*w+f.p),y:f.cy+f.ay*Math.sin(f.ky*w+f.p*1.7),s:f.s,r:f.r0+f.rn*360*t/DUR*0.5+12*Math.sin(w+f.p)};
+}
+
+const farBuds=FAR.map((f,i)=>mkBud($('far'),f.m,'f'+i));
+const L=mkBud($('mid'),false,'bl'), R=mkBud($('mid'),true,'br');
+const lidEl=$('lid'),caseEl=$('case'),shadow=$('shadow');
+
+// 위치·회전·크기 + 속도 방향(로컬 좌표) 블러 + 피사계 심도
+function draw(b,st,v,dof){
+  b.el.style.transform=`translate(${st.x}px,${st.y}px) rotate(${st.r}deg) scale(${st.s})`;
+  const rr=-st.r*Math.PI/180, lx=(v.x*Math.cos(rr)-v.y*Math.sin(rr)), ly=(v.x*Math.sin(rr)+v.y*Math.cos(rr));
+  const k=0.3/60/st.s, mx=Math.abs(lx)*k, my=Math.abs(ly)*k, d=dof/st.s;
+  blur(b.el,b.id,Math.hypot(mx,d),Math.hypot(my,d));
+}
+const vel=(f,t)=>{const h=1/360,a=f(t-h),b=f(t+h);return {x:(b.x-a.x)/(2*h),y:(b.y-a.y)/(2*h)}};
+
+function seek(t){
+  t=((t%DUR)+DUR)%DUR;
+  const c=caseOff(t);
+  caseEl.style.transform=`translate(${CASE.x-210+c.x}px,${CASE.y-165+c.y}px) rotate(${c.r}deg)`;
+  shadow.style.transform=`translate(${CASE.x-220+c.x*0.5}px,${1560}px) scale(${1-c.y*0.004},1)`;
+  shadow.style.opacity=(0.85-c.y*0.012).toFixed(3);
+  lidEl.style.transform=`rotate(${-108*lidOpen(t)}deg)`;
+
+  FAR.forEach((f,i)=>{const st=farState(f,t);draw(farBuds[i],st,vel(tt=>farState(f,tt),t),5.5)});
+
+  for(const [b,P] of [[L,PATH_L],[R,PATH_R]]){
+    const st=budState(P,t);
+    const fly=st.s>0.63;
+    // 케이스 안에 있을 땐 케이스 앞면 뒤, 가까이 올 땐 맨 앞
+    const target=st.s>1.05?$('near'):$('mid');
+    if(b.el.parentNode!==target) target.appendChild(b.el);
+    let s2=st;
+    if(target===$('mid')){ // mid 레이어는 케이스 좌표계 안: 케이스 변환을 되돌림
+      const ang=-c.r*Math.PI/180, dx=st.x-(CASE.x+c.x), dy=st.y-(CASE.y+c.y);
+      s2={x:210+dx*Math.cos(ang)-dy*Math.sin(ang),y:165+dx*Math.sin(ang)+dy*Math.cos(ang),s:st.s,r:st.r-c.r};
+    }
+    const dof=st.s>1.3?(st.s-1.3)*9:(fly&&st.s<0.85?(0.85-st.s)*14:0);
+    draw(b,s2,vel(tt=>budState(P,tt),t),dof);
+  }
+}
+window.seek=seek;window.DUR=DUR;
+
+window.renderAudio=async function(){
+  const SR=48000,ctx=new OfflineAudioContext(2,SR*DUR,SR);
+  let seed=7;const rnd=()=>(seed=(seed*1664525+1013904223)>>>0)/4294967296;
+  const nb=ctx.createBuffer(1,SR*2,SR);{const d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=rnd()*2-1}
+  const out=ctx.createGain();out.gain.value=0.9;out.connect(ctx.destination);
+  function whoosh(t,dur,f0,f1,g,pan=0){
+    const s=ctx.createBufferSource();s.buffer=nb;
+    const f=ctx.createBiquadFilter();f.type='bandpass';f.Q.value=0.8;
+    f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(f1,t+dur);
+    const a=ctx.createGain();a.gain.setValueAtTime(0.0001,t);a.gain.exponentialRampToValueAtTime(g,t+dur*0.45);a.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    const p=ctx.createStereoPanner();p.pan.value=pan;
+    s.connect(f);f.connect(a);a.connect(p);p.connect(out);s.start(t);s.stop(t+dur+0.02);
+  }
+  function click(t,f,g){
+    const o=ctx.createOscillator(),a=ctx.createGain();o.frequency.value=f;
+    a.gain.setValueAtTime(0.0001,t);a.gain.exponentialRampToValueAtTime(g,t+0.003);a.gain.exponentialRampToValueAtTime(0.0001,t+0.07);
+    o.connect(a);a.connect(out);o.start(t);o.stop(t+0.1);
+  }
+  function pad(f,g){
+    const o=ctx.createOscillator(),a=ctx.createGain();o.type='sine';o.frequency.value=f;
+    a.gain.setValueAtTime(g,0);o.connect(a);a.connect(out);o.start(0);o.stop(DUR);
+  }
+  pad(220,0.025);pad(329.63,0.018);pad(440,0.01);
+  click(0.27,1400,0.18);click(4.95,900,0.2);
+  whoosh(0.6,0.6,500,2200,0.25);
+  whoosh(2.7,0.9,2600,500,0.4,0.5);
+  whoosh(3.3,0.8,2400,450,0.35,-0.5);
+  whoosh(4.15,0.5,1800,600,0.18);
+  const buf=await ctx.startRendering();
+  const A=buf.getChannelData(0),B=buf.getChannelData(1),n=A.length,pcm=new Int16Array(n*2);
+  // 반복 재생 시 이음매가 튀지 않게 양 끝 10ms 페이드
+  const fe=480;
+  for(let i=0;i<n;i++){const g=Math.min(1,i/fe,(n-1-i)/fe);pcm[2*i]=clamp(A[i]*g,-1,1)*32767;pcm[2*i+1]=clamp(B[i]*g,-1,1)*32767}
+  let s='';const u=new Uint8Array(pcm.buffer);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));
+  return btoa(s);
+};
+seek(0);
+</script>
+</body>
+</html>
