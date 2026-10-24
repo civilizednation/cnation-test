@@ -561,7 +561,8 @@ def setup_render(preview):
     cy.caustics_reflective = False
     cy.caustics_refractive = False
     cy.blur_glossy = 1.0
-    scene.render.use_persistent_data = True
+    # use_persistent_data 는 켜지 않는다: Blender 5.0.1 에서 애니메이션 도중 키캡 재질이 검게 깨짐
+    scene.render.use_persistent_data = False
     scene.render.use_motion_blur = True
     scene.render.motion_blur_shutter = 0.5
     scene.render.resolution_percentage = 50 if preview else 100
