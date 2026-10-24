@@ -6,7 +6,8 @@
 
 --preview  : 50% 해상도, 낮은 샘플 수, 기본값으로 30프레임마다 한 장씩
 --frames   : 렌더할 프레임 목록(쉼표 구분). 없으면 전체 애니메이션
---save     : .blend 파일 경로(선택)
+--save     : .blend 파일 경로(선택). Blender 에서 열어 편집할 수 있는 파일
+--no-render: 렌더하지 않음 (--save 와 함께 쓰면 .blend 만 만든다)
 """
 import math
 import os
@@ -40,12 +41,15 @@ CUBE = 0.8
 
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
-    opts = {"preview": False, "out": os.path.join(HERE, "frames"), "frames": None, "save": None}
+    opts = {"preview": False, "out": os.path.join(HERE, "frames"), "frames": None, "save": None,
+            "render": True}
     i = 0
     while i < len(argv):
         a = argv[i]
         if a == "--preview":
             opts["preview"] = True
+        elif a == "--no-render":
+            opts["render"] = False
         elif a in ("--out", "--frames", "--save"):
             opts[a[2:]] = argv[i + 1]
             i += 1
@@ -576,6 +580,19 @@ def setup_render(preview):
     scene.render.image_settings.compression = 15
 
 
+def save_blend(path):
+    """GUI 에서 열어 바로 편집·렌더할 수 있도록 저장."""
+    scene = bpy.context.scene
+    scene.frame_set(1)
+    # 출력 경로는 .blend 옆 frames/ 로 (상대 경로)
+    scene.render.filepath = "//frames/frame_"
+    # 사용자 환경설정에서 GPU 를 켜 두면 그대로 쓰고, 없으면 Cycles 가 CPU 로 렌더
+    scene.cycles.device = "GPU"
+    bpy.ops.file.pack_all()
+    bpy.ops.wm.save_as_mainfile(filepath=path, compress=True)
+    print(f"[scene] saved {path}")
+
+
 def main():
     opts = parse_args()
     reset_scene()
@@ -590,7 +607,9 @@ def main():
     scene = bpy.context.scene
 
     if opts["save"]:
-        bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(opts["save"]))
+        save_blend(os.path.abspath(opts["save"]))
+    if not opts["render"]:
+        return
 
     out = os.path.abspath(opts["out"])
     os.makedirs(out, exist_ok=True)
