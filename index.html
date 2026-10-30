@@ -1,402 +1,263 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Q&amp;A 테스트</title>
-  <style>
-    :root { --bg: #f5f6f8; --card: #fff; --text: #1d1f23; --muted: #6b7280; --accent: #2563eb; --user: #e8efff; --line: #e5e7eb; }
-    @media (prefers-color-scheme: dark) {
-      :root { --bg: #111317; --card: #1b1e24; --text: #e8eaed; --muted: #9aa0a6; --accent: #7aa2ff; --user: #243049; --line: #2c3038; }
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
-    main { max-width: 720px; margin: 0 auto; padding: 24px 16px; min-height: 100vh; display: flex; flex-direction: column; gap: 16px; }
-    h1 { font-size: 1.3rem; margin: 0; }
-    #log { flex: 1; display: flex; flex-direction: column; gap: 12px; }
-    .msg { padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); white-space: pre-wrap; word-break: break-word; }
-    .msg .sources.error { color: #dc2626; }
-    .md { white-space: normal; }
-    .md > :first-child { margin-top: 0; }
-    .md > :last-child { margin-bottom: 0; }
-    .md h1, .md h2, .md h3 { font-size: 1.05rem; margin: 1em 0 .4em; }
-    .md pre { overflow-x: auto; padding: 10px; border-radius: 8px; background: var(--bg); }
-    .md code { font-family: ui-monospace, Menlo, monospace; font-size: .9em; }
-    .md blockquote { margin: .5em 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--muted); }
-    .md table { border-collapse: collapse; display: block; overflow-x: auto; }
-    .md th, .md td { border: 1px solid var(--line); padding: 4px 8px; }
-    .md a { color: var(--accent); }
-    .msg.user { background: var(--user); align-self: flex-end; max-width: 85%; }
-    .msg.error { color: #dc2626; }
-    .msg.pending { color: var(--muted); }
-    .sources { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: .85rem; color: var(--muted); white-space: normal; }
-    .sources a { color: var(--accent); text-decoration: none; margin-right: 10px; display: inline-block; }
-    .empty { color: var(--muted); text-align: center; margin-top: 40px; }
-    form { display: flex; gap: 8px; position: sticky; bottom: 16px; flex-wrap: wrap; }
-    .search-toggle { width: 100%; display: flex; align-items: center; gap: 6px; font-size: .9rem; color: var(--muted); background: var(--bg); }
-    .attach { padding: 0 14px; background: var(--card); color: var(--text); border: 1px solid var(--line); font-size: 1.2rem; }
-    .chips { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; background: var(--bg); }
-    .chips:empty { display: none; }
-    .chip { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 4px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); font-size: .85rem; max-width: 100%; }
-    .chip img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; }
-    .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
-    .chip button { padding: 0 6px; background: none; color: var(--muted); font-weight: normal; }
-    .msg .thumbs { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
-    .msg .thumbs img { max-width: 120px; max-height: 120px; border-radius: 8px; }
-    .msg .thumbs .file { font-size: .85rem; padding: 4px 8px; border-radius: 6px; background: var(--card); }
-    .ai-status { width: 100%; font-size: .75rem; color: var(--muted); text-align: center; background: var(--bg); padding-bottom: 2px; }
-    .ai-status b { color: var(--accent); font-weight: 600; }
-    textarea { flex: 1; resize: none; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; min-height: 52px; }
-    button { padding: 0 20px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
-    button:disabled { opacity: .5; cursor: default; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>요즘 읽은 책, 들려주세요</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f6f4;--card:#fff;--ink:#1c2530;--sub:#667380;--line:#dde4e0;--acc:#1f6f6b;--accfg:#fff;--star:#e0a526;--off:#cfd7d3;--soft:#e4f0ee;--danger:#c0392b;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181d;--card:#1b242b;--ink:#e8eeea;--sub:#93a09b;--line:#2b3740;--acc:#4fb3ad;--accfg:#0d1a19;--star:#f0b93a;--off:#33424a;--soft:#1f3436;--danger:#ff7b6b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12181d;--card:#1b242b;--ink:#e8eeea;--sub:#93a09b;--line:#2b3740;--acc:#4fb3ad;--accfg:#0d1a19;--star:#f0b93a;--off:#33424a;--soft:#1f3436;--danger:#ff7b6b;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;line-height:1.55}
+main{max-width:560px;margin:0 auto;padding:28px 18px 60px}
+h1{font-family:"Noto Serif KR",serif;font-size:1.6rem;margin:0 0 14px}
+.nav{display:flex;gap:8px;margin:0 0 20px}
+.nav a{padding:6px 16px;border:1px solid var(--line);border-radius:999px;color:var(--sub);text-decoration:none;font-size:.92rem}
+.nav a.on{background:var(--acc);color:var(--accfg);border-color:var(--acc)}
+.stat{color:var(--sub);margin:0 0 14px;font-size:.95rem}
+form,.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:10px}
+label,.fld{font-size:.85rem;color:var(--sub);display:grid;gap:4px}
+input,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+input:focus,textarea:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+textarea{resize:vertical;min-height:64px}
+.stars{display:flex;gap:2px}
+.stars button{background:none;border:0;font-size:2rem;line-height:1;padding:2px 4px;cursor:pointer;color:var(--off)}
+.stars button.on{color:var(--star)}
+.save{background:var(--acc);color:var(--accfg);border:0;border-radius:10px;padding:12px;font:inherit;font-weight:700;cursor:pointer}
+.save:disabled{opacity:.6}
+.err{color:var(--danger);font-size:.85rem;margin:0;min-height:1.2em}
+.note{background:var(--soft);border-radius:10px;padding:10px 12px;font-size:.88rem;margin:0 0 14px}
+ul{list-style:none;margin:14px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+li{background:var(--card);border:1px solid var(--line);border-radius:14px}
+.item{display:flex;flex-direction:column;min-height:120px;overflow:hidden;padding:12px;color:var(--ink);text-decoration:none;border-radius:14px;background:color-mix(in srgb,hsl(var(--h,200) 55% 50%) 22%,var(--card))}
+.h0{--h:150}.h1{--h:30}.h2{--h:260}.h3{--h:210}.h4{--h:320}.h5{--h:180}.h6{--h:0}.h7{--h:48}.h8{--h:200}
+.ct{font-size:.72rem;color:var(--sub);min-height:1.1em}
+.tt{font-family:"Noto Serif KR",serif;font-weight:700;font-size:1rem;line-height:1.35;margin-top:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:keep-all}
+.au{color:var(--sub);font-size:.82rem;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .meta{margin-top:auto;padding-top:8px;font-size:.75rem}
+.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.t{font-family:"Noto Serif KR",serif;font-weight:700;font-size:1.05rem;margin:0}
+.t.big{font-size:1.3rem}
+.a{color:var(--sub);font-size:.9rem;margin:0}
+.meta{display:flex;justify-content:space-between;gap:8px;color:var(--sub);font-size:.82rem;margin-top:6px}
+.r{color:var(--star);letter-spacing:2px}.r i{font-style:normal;color:var(--off)}
+.c{margin:6px 0 0;white-space:pre-wrap;word-break:break-word}
+.row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px;flex-wrap:wrap}
+.row .save{padding:8px 20px}
+.who{color:var(--sub);font-size:.85rem}
+.btn{background:none;border:1px solid var(--line);color:var(--sub);border-radius:999px;cursor:pointer;font:inherit;font-size:.85rem;padding:4px 12px}
+.btn.link{border:0;padding:4px 8px}
+.btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.ask{color:var(--danger);font-size:.88rem;font-weight:500}
+.empty{grid-column:1/-1;text-align:center;color:var(--sub);padding:30px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:none;border:1px solid var(--line);color:var(--sub);border-radius:999px;font:inherit;font-size:.88rem;padding:6px 14px;cursor:pointer}
+.chip.on{background:var(--acc);color:var(--accfg);border-color:var(--acc)}
+.filter{margin-top:12px}
+.tag{display:inline-block;margin-right:4px;background:var(--soft);color:var(--acc);border-radius:999px;font-size:.75rem;padding:1px 10px;margin-bottom:4px}
+.rx{font-size:.85rem;margin-right:6px}.rx.me{font-weight:700;color:var(--acc)}
+.picker{display:flex;gap:8px;justify-content:flex-end}
+.pk{background:var(--soft);border:2px solid transparent;border-radius:999px;font-size:1.3rem;line-height:1;padding:6px 12px;cursor:pointer}
+.pk.me{border-color:var(--acc)}
+.back{display:inline-block;margin-bottom:12px;color:var(--acc);text-decoration:none}
+.more{display:block;margin:14px auto 0}
+.tier{font-weight:700}
+.t-bronze{color:#b8742f}.t-silver{color:#8793a0}.t-gold{color:#c99a0b}.t-diamond{color:#2e9bd6}.t-master{color:#a855f7}
+.mytier{margin-bottom:12px}
+progress{accent-color:var(--acc);width:100%;height:10px}
+.toast.ok{background:var(--acc);color:var(--accfg)}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:528px;margin:0 auto;background:var(--danger);color:#fff;padding:12px 14px;border-radius:12px;font-size:.9rem;z-index:20}
+</style>
 </head>
 <body>
-  <main>
-    <h1>AI Q&amp;A 테스트</h1>
-    <div id="log"><p class="empty">질문을 입력하고 Enter 를 누르세요. (Shift+Enter 줄바꿈)<br />📎 로 사진이나 PDF 를 첨부할 수 있어요.</p></div>
-    <form id="form">
-      <label class="search-toggle"><input type="checkbox" id="search" /> 🔍 항상 웹 검색 (오늘·날씨·뉴스 같은 질문은 자동 검색)</label>
-      <div class="chips" id="chips"></div>
-      <input type="file" id="file" accept="image/*,application/pdf" multiple hidden />
-      <button type="button" class="attach" id="attach" title="사진 또는 PDF 첨부" aria-label="파일 첨부">📎</button>
-      <textarea id="prompt" maxlength="1000" placeholder="무엇이든 물어보세요"></textarea>
-      <button id="send" type="submit">전송</button>
-      <div class="ai-status" id="ai-status">AI 확인 중…</div>
-    </form>
-  </main>
-  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-  <script>
-    const log = document.getElementById('log');
-    const form = document.getElementById('form');
-    const input = document.getElementById('prompt');
-    const send = document.getElementById('send');
-    const search = document.getElementById('search');
-    const fileInput = document.getElementById('file');
-    const chips = document.getElementById('chips');
-    const aiStatus = document.getElementById('ai-status');
+<main>
+<h1>요즘 읽은 책, 들려주세요</h1>
+<nav class="nav"><a href="#board" id="nb">책 목록</a><a href="#write" id="nw">글쓰기</a></nav>
+<p class="note" id="off" hidden>공유 저장소에 연결하지 못했어요. 로그인한 상태에서 링크를 다시 열어 주세요.</p>
 
-    // 🔍 체크 상태를 이 브라우저에 기억 (저장이 막혀 있어도 앱은 정상 동작)
-    try {
-      search.checked = localStorage.getItem('webSearch') === 'on';
-    } catch {}
-    search.addEventListener('change', () => {
-      try {
-        localStorage.setItem('webSearch', search.checked ? 'on' : 'off');
-      } catch {}
-    });
+<section id="vBoard">
+<p class="stat" id="stat">불러오는 중…</p>
+<input id="q" type="search" placeholder="책 제목이나 작가로 검색" aria-label="검색">
+<div class="chips filter" id="filters" aria-label="카테고리 필터"></div>
+<ul id="list"></ul>
+<button class="btn more" id="moreBtn" type="button" hidden>더 보기</button>
+</section>
 
-    // ---- 하단 AI 표시: 사용 가능한 AI 순서 + 마지막으로 답한 AI 강조 ----
-    let providers = [];
-    function renderStatus(lastUsed) {
-      if (!providers.length) {
-        aiStatus.textContent = '사용 가능한 AI 가 없습니다';
-        return;
-      }
-      aiStatus.textContent = 'AI: ';
-      providers.forEach((provider, i) => {
-        if (i) aiStatus.append(' → ');
-        const used = lastUsed && lastUsed.provider === provider.label;
-        const name = used ? `${provider.label} (${lastUsed.model})` : provider.label;
-        if (used) {
-          const b = document.createElement('b');
-          b.textContent = `● ${name}`;
-          aiStatus.appendChild(b);
-        } else {
-          aiStatus.append(name);
-        }
-      });
-    }
-    fetch('/api/status')
-      .then((res) => res.json())
-      .then((data) => { providers = data.providers || []; renderStatus(); })
-      .catch(() => { aiStatus.textContent = ''; });
+<section id="vWrite" hidden>
+<div class="card mytier" id="mytier" hidden></div>
+<form id="f" autocomplete="off">
+<label>책 제목<input id="title" maxlength="100" placeholder="예: 어린 왕자"></label>
+<label>작가<input id="author" maxlength="60" placeholder="예: 생텍쥐페리"></label>
+<div class="fld">카테고리 (여러 개 선택 가능)<div class="chips" id="cats" role="group" aria-label="카테고리"></div></div>
+<div class="fld">별점<div class="stars" id="stars" role="radiogroup" aria-label="별점"></div></div>
+<label>한줄평<textarea id="note" maxlength="200" placeholder="읽고 느낀 점을 한 줄로"></textarea></label>
+<p class="err" id="err"></p>
+<button class="save" id="go" type="submit">남기기</button>
+</form>
+</section>
 
-    // ---- 첨부파일 ----
-    const MAX_FILES = 3;
-    const MAX_TOTAL_BYTES = 3 * 1024 * 1024; // base64 로 바뀌면 약 4MB (Vercel 요청 한도 4.5MB)
-    const MAX_IMAGE_SIDE = 1600;
-    let attachments = []; // { name, mimeType, data(base64), preview(dataURL|null), size }
+<section id="vDetail" hidden>
+<a class="back" href="#board">← 목록으로</a>
+<div id="detail"></div>
+</section>
+</main>
+<script>
+(function(){
+var $=function(id){return document.getElementById(id)};
+var db=null,user=null,uid=null,rows=[],loaded=false,names={},counts={};
+var rating=0,sel=[],flt="",qry="",limit=20;
+var view="board",curId="",pendingDel=false,pickOpen=false,editing=false,draft=null,editErr="",boardY=0;
+var CATS=["자기계발","에세이","진리&철학","킬링타임","시","추리","사랑","따뜻함"];
+var RX=[{k:"heart",e:"❤️",n:"하트"},{k:"laugh",e:"😄",n:"웃음"},{k:"wow",e:"😮",n:"놀라움"},{k:"cry",e:"😢",n:"눈물"}];
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function toast(m,ok){var d=document.createElement("div");d.className="toast"+(ok?" ok":"");d.textContent=m;document.body.appendChild(d);setTimeout(function(){d.remove()},7000)}
+function getCats(r){return Array.isArray(r.cats)?r.cats:(r.cat?[r.cat]:[])}
+function getReacts(b){var o={},src=b.reacts||{heart:Array.isArray(b.likes)?b.likes:[]};RX.forEach(function(x){o[x.k]=Array.isArray(src[x.k])?src[x.k].slice():[]});return o}
+function total(rc){return RX.reduce(function(s,x){return s+rc[x.k].length},0)}
+function isMine(b){return !!uid&&b.uid===uid}
+var TIERS=[{max:5,k:"bronze",n:"브론즈",e:"🥉"},{max:10,k:"silver",n:"실버",e:"🥈"},{max:15,k:"gold",n:"골드",e:"🥇"},{max:20,k:"diamond",n:"다이아",e:"💎"},{max:Infinity,k:"master",n:"마스터",e:"👑"}];
+function tierOf(n){return TIERS.find(function(t){return n<=t.max})}
+function nameHtml(b,full){var c=counts[b.uid]||0,t=tierOf(c);return '<span class="tier t-'+t.k+'">'+t.e+' '+esc(names[b.uid]||"익명")+(isMine(b)?' (나)':'')+(full?' · '+t.n+' '+c+'권':'')+'</span>'}
+function drawMyTier(){var el=$("mytier");if(!uid||!loaded){el.hidden=true;return}
+var c=counts[uid]||0,t=tierOf(c),i=TIERS.indexOf(t),prev=i?TIERS[i-1].max:0,nx=TIERS[i+1];
+el.hidden=false;
+el.innerHTML='<div><span class="tier t-'+t.k+'">'+t.e+' '+t.n+'</span> <span class="who">· 지금까지 '+c+'권 소개했어요</span></div>'+(nx?'<progress max="'+(t.max-prev)+'" value="'+Math.min(c-prev,t.max-prev)+'"></progress><div class="who">'+nx.e+' '+nx.n+'까지 '+(t.max+1-c)+'권 남았어요</div>':'<div class="who">최고 티어예요! 🎉</div>')}
+function tags(b){return '<span>'+getCats(b).map(function(c){return '<span class="tag">'+esc(c)+'</span>'}).join('')+'</span>'}
+function starBtns(val,attr){var h="";for(var i=1;i<=5;i++)h+='<button type="button" role="radio" aria-checked="'+(i===val)+'" aria-label="'+i+'점" '+attr+'="'+i+'" class="'+(i<=val?"on":"")+'">★</button>';return h}
+function chipBtns(list,attr,on){return CATS.map(function(c){var s=list.indexOf(c)>=0;return '<button type="button" role="checkbox" aria-checked="'+s+'" class="chip'+(s?' on':'')+'" '+attr+'="'+esc(c)+'">'+esc(c)+'</button>'}).join("")}
+async function resolveNames(){
+if(!user)return;
+var ids=[];rows.forEach(function(r){if(r.uid&&!(r.uid in names)&&ids.indexOf(r.uid)<0)ids.push(r.uid)});
+if(!ids.length)return;
+try{var ps=await user.profiles(ids);ids.forEach(function(i){names[i]=(ps[i]&&ps[i].name)||""})}catch(e){}
+}
 
-    const readAsDataURL = (blob) => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
+/* ---------- 글쓰기 ---------- */
+function drawStars(){$("stars").innerHTML=starBtns(rating,"data-n")}
+function drawCats(){$("cats").innerHTML=chipBtns(sel,"data-c")}
+$("stars").addEventListener("click",function(e){var b=e.target.closest("[data-n]");if(!b)return;rating=+b.dataset.n;drawStars()});
+$("cats").addEventListener("click",function(e){var b=e.target.closest("[data-c]");if(!b)return;var c=b.dataset.c,i=sel.indexOf(c);if(i>=0)sel.splice(i,1);else sel.push(c);drawCats()});
+$("f").addEventListener("submit",async function(e){
+e.preventDefault();
+var t=$("title").value.trim();
+if(!db||!uid){$("err").textContent="로그인 정보를 확인하지 못했어요. 로그인한 상태에서 다시 열어 주세요.";return}
+if(!t){$("err").textContent="책 제목을 입력해 주세요.";return}
+if(!sel.length){$("err").textContent="카테고리를 선택해 주세요.";return}
+if(!rating){$("err").textContent="별점을 선택해 주세요.";return}
+$("err").textContent="";$("go").disabled=true;var b0=counts[uid]||0;
+try{
+await db.collection("reviews").add({title:t,cats:sel.slice(),author:$("author").value.trim(),rating:rating,note:$("note").value.trim(),uid:uid,reacts:{},ts:Date.now()});
+$("f").reset();rating=0;sel=[];drawStars();drawCats();location.hash="board";
+var t0=tierOf(b0),t1=tierOf(b0+1);if(t1.k!==t0.k)toast("🎉 "+t1.e+" "+t1.n+" 티어 달성!",true)
+}catch(err){toast("저장 실패: "+((err&&(err.code||err.message))||err))}
+$("go").disabled=false});
 
-    // 휴대폰 사진은 몇 MB 씩 되므로 긴 변 1600px JPEG 로 줄여서 보냅니다.
-    async function shrinkImage(file) {
-      const url = URL.createObjectURL(file);
-      try {
-        const img = await new Promise((resolve, reject) => {
-          const el = new Image();
-          el.onload = () => resolve(el);
-          el.onerror = () => reject(new Error('이미지를 읽을 수 없습니다.'));
-          el.src = url;
-        });
-        const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.naturalWidth * scale);
-        canvas.height = Math.round(img.naturalHeight * scale);
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL('image/jpeg', 0.85);
-      } finally {
-        URL.revokeObjectURL(url);
-      }
-    }
+/* ---------- 책 목록 ---------- */
+function drawFilters(){$("filters").innerHTML=["전체"].concat(CATS).map(function(c){var all=c==="전체",on=all?!flt:c===flt;return '<button type="button" class="chip'+(on?' on':'')+'" data-f="'+esc(c)+'">'+esc(c)+(all?'':' '+rows.filter(function(r){return getCats(r).indexOf(c)>=0}).length)+'</button>'}).join("")}
+$("filters").addEventListener("click",function(e){var b=e.target.closest("[data-f]");if(!b)return;flt=b.dataset.f==="전체"?"":b.dataset.f;limit=20;renderBoard()});
+$("q").addEventListener("input",function(e){qry=e.target.value.trim().toLowerCase();limit=20;renderBoard()});
+$("moreBtn").addEventListener("click",function(){limit+=20;renderBoard()});
+function item(b){var cs=getCats(b),ix=cs.length?CATS.indexOf(cs[0]):-1;return '<li><a class="item h'+(ix<0?8:ix)+'" href="#p-'+b.id+'"><span class="ct">'+esc(cs[0]||"")+(cs.length>1?' +'+(cs.length-1):'')+'</span><span class="tt">'+esc(b.title)+'</span><span class="au">'+esc(b.author||"작가 미입력")+'</span><span class="meta"><span class="nm">'+nameHtml(b)+'</span><span>공감 '+total(getReacts(b))+'</span></span></a></li>'}
+async function renderBoard(){
+await resolveNames();
+drawFilters();
+var n=rows.length;
+if(!loaded){$("stat").textContent="불러오는 중…";$("list").innerHTML="";$("moreBtn").hidden=true;return}
+var all=rows.filter(function(r){return(!flt||getCats(r).indexOf(flt)>=0)&&(!qry||((r.title||"")+" "+(r.author||"")).toLowerCase().indexOf(qry)>=0)});
+$("stat").textContent=n?"소개된 책 "+n+"권":"아직 소개된 책이 없어요";
+if(!all.length){$("list").innerHTML='<li class="empty">'+(n?(qry?'검색 결과가 없어요.':'이 카테고리에는 아직 글이 없어요.'):'첫 번째 책을 소개해 보세요.')+'</li>';$("moreBtn").hidden=true;return}
+$("list").innerHTML=all.slice(0,limit).map(item).join("");
+$("moreBtn").hidden=all.length<=limit;
+$("moreBtn").textContent="더 보기 ("+(all.length-limit)+"권 남음)"}
 
-    function renderChips() {
-      chips.textContent = '';
-      attachments.forEach((file, i) => {
-        const chip = document.createElement('div');
-        chip.className = 'chip';
-        if (file.preview) {
-          const img = document.createElement('img');
-          img.src = file.preview;
-          img.alt = '';
-          chip.appendChild(img);
-        }
-        const name = document.createElement('span');
-        name.textContent = file.preview ? file.name : `📄 ${file.name}`;
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.textContent = '✕';
-        remove.setAttribute('aria-label', `${file.name} 삭제`);
-        remove.onclick = () => { attachments.splice(i, 1); renderChips(); };
-        chip.append(name, remove);
-        chips.appendChild(chip);
-      });
-    }
+/* ---------- 글 상세 ---------- */
+function reactUI(rc){return RX.filter(function(x){return rc[x.k].length}).map(function(x){var on=uid&&rc[x.k].indexOf(uid)>=0;return '<span class="rx'+(on?' me':'')+'">'+x.e+' '+rc[x.k].length+'</span>'}).join('')+'<button type="button" class="btn" data-open="1">공감</button>'}
+function pickerRow(rc){return '<div class="picker">'+RX.map(function(x){var on=uid&&rc[x.k].indexOf(uid)>=0;return '<button type="button" class="pk'+(on?' me':'')+'" data-react="'+x.k+'" aria-label="'+x.n+'">'+x.e+'</button>'}).join('')+'</div>'}
+function editCard(){
+var d=draft;
+return '<div class="card"><label>책 제목<input data-k="title" maxlength="100" value="'+esc(d.title)+'"></label>'
++'<label>작가<input data-k="author" maxlength="60" value="'+esc(d.author)+'"></label>'
++'<div class="fld">카테고리<div class="chips">'+chipBtns(d.cats,"data-ec")+'</div></div>'
++'<div class="fld">별점<div class="stars">'+starBtns(d.rating,"data-es")+'</div></div>'
++'<label>한줄평<textarea data-k="note" maxlength="200">'+esc(d.note)+'</textarea></label>'
++'<p class="err">'+esc(editErr)+'</p>'
++'<div class="row"><button class="btn" type="button" data-ecancel="1">취소</button><button class="save" type="button" data-esave="1">저장</button></div></div>'}
+async function renderDetail(){
+await resolveNames();
+var el=$("detail"),b=rows.find(function(x){return x.id===curId});
+if(!loaded){el.innerHTML='<p class="empty">불러오는 중…</p>';return}
+if(!b){el.innerHTML='<p class="empty">글을 찾을 수 없어요. 삭제되었을 수 있어요.</p>';return}
+if(editing&&draft){el.innerHTML=editCard();return}
+var rc=getReacts(b),own="";
+if(isMine(b))own=pendingDel
+?'<div class="row"><span class="ask">이 글을 삭제할까요?</span><span><button class="btn danger" data-yes="1">삭제</button> <button class="btn" data-no="1">취소</button></span></div>'
+:'<div class="row"><span></span><span><button class="btn link" data-edit="1">수정</button><button class="btn link" data-del="1">삭제</button></span></div>';
+el.innerHTML='<div class="card">'+tags(b)+'<p class="t big">'+esc(b.title)+'</p><p class="a">'+esc(b.author||"작가 미입력")+'</p>'
++'<div class="r" aria-label="별점 '+b.rating+'점">'+"★".repeat(b.rating)+'<i>'+"★".repeat(5-b.rating)+'</i></div>'
++(b.note?'<p class="c">'+esc(b.note)+'</p>':'')
++'<div class="row"><span class="who">'+nameHtml(b,true)+'</span><span>'+reactUI(rc)+'</span></div>'
++(pickOpen?pickerRow(rc):'')+own+'</div>'}
+$("detail").addEventListener("input",function(e){var k=e.target.dataset&&e.target.dataset.k;if(k&&draft)draft[k]=e.target.value});
+$("detail").addEventListener("click",async function(e){
+if(!db)return;
+var t=e.target,b,q=function(s){return t.closest(s)},cur=rows.find(function(x){return x.id===curId});
+if(!cur)return;
+try{
+if(q("[data-open]")){pickOpen=!pickOpen;renderDetail()}
+else if(b=q("[data-react]")){
+if(!uid)return;
+var rc2=getReacts(cur),k=b.dataset.react,was=rc2[k].indexOf(uid)>=0;
+RX.forEach(function(x){var j=rc2[x.k].indexOf(uid);if(j>=0)rc2[x.k].splice(j,1)});
+if(!was)rc2[k].push(uid);
+pickOpen=false;await db.collection("reviews").doc(cur.id).update({reacts:rc2});renderDetail()}
+else if(q("[data-del]")){pendingDel=true;renderDetail()}
+else if(q("[data-no]")){pendingDel=false;renderDetail()}
+else if(q("[data-yes]")){pendingDel=false;await db.collection("reviews").doc(cur.id).delete();location.hash="board"}
+else if(q("[data-edit]")){draft={title:cur.title||"",author:cur.author||"",cats:getCats(cur).slice(),rating:cur.rating||0,note:cur.note||""};editing=true;editErr="";pendingDel=false;renderDetail()}
+else if(b=q("[data-ec]")){var c=b.dataset.ec,j2=draft.cats.indexOf(c);if(j2>=0)draft.cats.splice(j2,1);else draft.cats.push(c);renderDetail()}
+else if(b=q("[data-es]")){draft.rating=+b.dataset.es;renderDetail()}
+else if(q("[data-ecancel]")){editing=false;draft=null;editErr="";renderDetail()}
+else if(q("[data-esave]")){
+var tt=draft.title.trim();
+if(!tt){editErr="책 제목을 입력해 주세요.";renderDetail();return}
+if(!draft.cats.length){editErr="카테고리를 선택해 주세요.";renderDetail();return}
+if(!draft.rating){editErr="별점을 선택해 주세요.";renderDetail();return}
+await db.collection("reviews").doc(cur.id).update({title:tt,author:draft.author.trim(),cats:draft.cats.slice(),rating:draft.rating,note:draft.note.trim()});
+editing=false;draft=null;editErr="";renderDetail()}
+}catch(err){toast("실패: "+((err&&(err.code||err.message))||err))}
+});
 
-    document.getElementById('attach').onclick = () => fileInput.click();
+/* ---------- 화면 전환 ---------- */
+function refresh(){if(view==="board")return renderBoard();if(view==="detail"&&!editing)return renderDetail();return Promise.resolve()}
+function route(){
+var prev=view;if(prev==="board")boardY=window.scrollY;
+var h=location.hash.slice(1);
+if(h==="write")view="write";
+else if(h.indexOf("p-")===0){view="detail";curId=h.slice(2)}
+else view="board";
+pendingDel=false;pickOpen=false;editing=false;draft=null;editErr="";
+$("vBoard").hidden=view!=="board";$("vWrite").hidden=view!=="write";$("vDetail").hidden=view!=="detail";
+$("nb").className=view==="write"?"":"on";$("nw").className=view==="write"?"on":"";
+var back=view==="board"&&prev!=="board";
+window.scrollTo(0,0);
+refresh().then(function(){if(back)window.scrollTo(0,boardY)})}
+window.addEventListener("hashchange",route);
 
-    fileInput.addEventListener('change', async () => {
-      for (const file of fileInput.files) {
-        if (attachments.length >= MAX_FILES) {
-          alert(`파일은 ${MAX_FILES}개까지 첨부할 수 있습니다.`);
-          break;
-        }
-        try {
-          let dataURL;
-          if (file.type === 'application/pdf') {
-            dataURL = await readAsDataURL(file);
-          } else if (file.type.startsWith('image/') || /\.(heic|heif)$/i.test(file.name)) {
-            dataURL = await shrinkImage(file);
-          } else {
-            alert(`${file.name}: 이미지와 PDF 만 첨부할 수 있습니다.`);
-            continue;
-          }
-          const [header, data] = dataURL.split(',');
-          const mimeType = header.slice(5, header.indexOf(';'));
-          const size = Math.ceil(data.length * 0.75);
-          const total = attachments.reduce((sum, f) => sum + f.size, 0) + size;
-          if (total > MAX_TOTAL_BYTES) {
-            alert(`${file.name}: 첨부파일 합계가 3MB 를 넘습니다.`);
-            continue;
-          }
-          attachments.push({
-            name: file.name,
-            mimeType,
-            data,
-            size,
-            preview: mimeType.startsWith('image/') ? dataURL : null,
-          });
-        } catch (error) {
-          alert(`${file.name}: ${error.message}`);
-        }
-      }
-      fileInput.value = '';
-      renderChips();
-    });
-
-    // 마크다운 규칙상 "**서울(Seoul)**은" 처럼 닫는 ** 앞이 문장부호이고 뒤가 한글이면 굵게가 안 됩니다.
-    // 코드 블록(```)이 아닌 부분의 한 줄짜리 **…** 는 직접 <strong> 으로 바꿔 줍니다.
-    function fixCjkBold(text) {
-      return text
-        .split(/(```[\s\S]*?(?:```|$))/)
-        .map((part, i) => (i % 2 ? part : part.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')))
-        .join('');
-    }
-
-    // 마크다운을 HTML 로 바꿔서 표시 (라이브러리를 못 불러오면 일반 텍스트로)
-    function renderMarkdown(el, text) {
-      if (window.marked && window.DOMPurify) {
-        el.innerHTML = DOMPurify.sanitize(marked.parse(fixCjkBold(text)));
-        el.querySelectorAll('a').forEach((a) => { a.target = '_blank'; a.rel = 'noopener noreferrer'; });
-        el.classList.add('md');
-      } else {
-        el.textContent = text;
-      }
-    }
-
-    function addMessage(text, kind) {
-      log.querySelector('.empty')?.remove();
-      const el = document.createElement('div');
-      el.className = `msg ${kind}`;
-      el.textContent = text;
-      log.appendChild(el);
-      el.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      return el;
-    }
-
-    // 서버가 보내는 NDJSON(한 줄에 JSON 하나) 스트림을 이벤트 단위로 읽습니다.
-    async function* readEvents(res) {
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let newline;
-        while ((newline = buffer.indexOf('\n')) >= 0) {
-          const line = buffer.slice(0, newline).trim();
-          buffer = buffer.slice(newline + 1);
-          if (line) yield JSON.parse(line);
-        }
-      }
-      if (buffer.trim()) yield JSON.parse(buffer);
-    }
-
-    function nearBottom() {
-      return window.innerHeight + window.scrollY >= document.body.scrollHeight - 120;
-    }
-
-    function addFooter(answer, text) {
-      const footer = document.createElement('div');
-      footer.className = 'sources';
-      footer.textContent = text;
-      answer.appendChild(footer);
-      return footer;
-    }
-
-    function addSources(answer, sources) {
-      const box = addFooter(answer, '출처: ');
-      sources.forEach((source, i) => {
-        const link = document.createElement('a');
-        link.href = source.url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.textContent = `[${i + 1}] ${source.title}`;
-        box.appendChild(link);
-      });
-    }
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const prompt = input.value.trim();
-      const files = attachments;
-      if (!prompt && !files.length) return;
-
-      const userMsg = addMessage(prompt, 'user');
-      if (files.length) {
-        const thumbs = document.createElement('div');
-        thumbs.className = 'thumbs';
-        for (const file of files) {
-          if (file.preview) {
-            const img = document.createElement('img');
-            img.src = file.preview;
-            img.alt = file.name;
-            thumbs.appendChild(img);
-          } else {
-            const tag = document.createElement('div');
-            tag.className = 'file';
-            tag.textContent = `📄 ${file.name}`;
-            thumbs.appendChild(tag);
-          }
-        }
-        userMsg.prepend(thumbs);
-      }
-      input.value = '';
-      attachments = [];
-      renderChips();
-      send.disabled = true;
-      const answer = addMessage('생각 중…', 'pending');
-      const body = document.createElement('div');
-      let reply = '';
-      let meta = null;
-      const sources = [];
-      const notices = [];
-      let scheduled = false;
-
-      // 글자가 들어올 때마다 다시 그리되, 화면 갱신 주기(약 60fps)에 맞춰 한 번씩만
-      const render = () => {
-        if (scheduled) return;
-        scheduled = true;
-        requestAnimationFrame(() => {
-          scheduled = false;
-          const stick = nearBottom();
-          renderMarkdown(body, reply);
-          if (stick) window.scrollTo(0, document.body.scrollHeight);
-        });
-      };
-
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt,
-            search: search.checked,
-            files: files.map(({ name, mimeType, data }) => ({ name, mimeType, data })),
-          }),
-        });
-        if (!res.ok || !res.headers.get('Content-Type')?.includes('ndjson')) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || `요청 실패 (HTTP ${res.status})`);
-        }
-
-        for await (const event of readEvents(res)) {
-          if (event.type === 'meta') {
-            meta = event;
-            renderStatus(meta);
-          } else if (event.type === 'delta') {
-            if (!reply) {
-              answer.textContent = '';
-              answer.className = 'msg';
-              answer.appendChild(body);
-            }
-            reply += event.text;
-            render();
-          } else if (event.type === 'sources') {
-            sources.push(...event.sources);
-          } else if (event.type === 'notice') {
-            notices.push(event.text);
-          } else if (event.type === 'error') {
-            throw new Error(event.error);
-          }
-        }
-
-        renderMarkdown(body, reply);
-        if (meta) {
-          const searchLabel = meta.search ? (meta.autoSearch ? ' · 🔍 자동 검색' : ' · 🔍 검색 사용') : '';
-          addFooter(answer, `${meta.provider} · ${meta.model}${searchLabel}`);
-        }
-        if (sources.length) addSources(answer, sources);
-        notices.forEach((text) => addFooter(answer, `ℹ️ ${text}`));
-      } catch (error) {
-        if (reply) {
-          // 답변 도중에 끊긴 경우: 받은 부분은 남기고 오류를 덧붙입니다.
-          renderMarkdown(body, reply);
-          addFooter(answer, `⚠️ ${error.message}`).classList.add('error');
-        } else {
-          answer.textContent = `오류: ${error.message}`;
-          answer.className = 'msg error';
-        }
-      } finally {
-        send.disabled = false;
-        input.focus();
-      }
-    });
-
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-        event.preventDefault();
-        form.requestSubmit();
-      }
-    });
-  </script>
+drawStars();drawCats();route();
+(async function init(){
+try{db=await claude.use("db");user=await claude.use("user")}catch(e){db=null}
+if(!db){$("off").hidden=false;loaded=true;refresh();return}
+try{uid=user?await user.id():null}catch(e){uid=null}
+db.collection("reviews").orderBy("ts","desc").onSnapshot(function(snap){
+rows=snap.docs.map(function(d){var v=Object.assign({},d.data()||{});v.id=d.id;return v});
+counts={};rows.forEach(function(r){if(r.uid)counts[r.uid]=(counts[r.uid]||0)+1});
+loaded=true;drawMyTier();refresh()},function(){$("off").hidden=false});
+})();
+})();
+</script>
 </body>
 </html>
