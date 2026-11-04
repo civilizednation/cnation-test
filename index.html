@@ -1,402 +1,154 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Q&amp;A 테스트</title>
-  <style>
-    :root { --bg: #f5f6f8; --card: #fff; --text: #1d1f23; --muted: #6b7280; --accent: #2563eb; --user: #e8efff; --line: #e5e7eb; }
-    @media (prefers-color-scheme: dark) {
-      :root { --bg: #111317; --card: #1b1e24; --text: #e8eaed; --muted: #9aa0a6; --accent: #7aa2ff; --user: #243049; --line: #2c3038; }
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
-    main { max-width: 720px; margin: 0 auto; padding: 24px 16px; min-height: 100vh; display: flex; flex-direction: column; gap: 16px; }
-    h1 { font-size: 1.3rem; margin: 0; }
-    #log { flex: 1; display: flex; flex-direction: column; gap: 12px; }
-    .msg { padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); white-space: pre-wrap; word-break: break-word; }
-    .msg .sources.error { color: #dc2626; }
-    .md { white-space: normal; }
-    .md > :first-child { margin-top: 0; }
-    .md > :last-child { margin-bottom: 0; }
-    .md h1, .md h2, .md h3 { font-size: 1.05rem; margin: 1em 0 .4em; }
-    .md pre { overflow-x: auto; padding: 10px; border-radius: 8px; background: var(--bg); }
-    .md code { font-family: ui-monospace, Menlo, monospace; font-size: .9em; }
-    .md blockquote { margin: .5em 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--muted); }
-    .md table { border-collapse: collapse; display: block; overflow-x: auto; }
-    .md th, .md td { border: 1px solid var(--line); padding: 4px 8px; }
-    .md a { color: var(--accent); }
-    .msg.user { background: var(--user); align-self: flex-end; max-width: 85%; }
-    .msg.error { color: #dc2626; }
-    .msg.pending { color: var(--muted); }
-    .sources { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: .85rem; color: var(--muted); white-space: normal; }
-    .sources a { color: var(--accent); text-decoration: none; margin-right: 10px; display: inline-block; }
-    .empty { color: var(--muted); text-align: center; margin-top: 40px; }
-    form { display: flex; gap: 8px; position: sticky; bottom: 16px; flex-wrap: wrap; }
-    .search-toggle { width: 100%; display: flex; align-items: center; gap: 6px; font-size: .9rem; color: var(--muted); background: var(--bg); }
-    .attach { padding: 0 14px; background: var(--card); color: var(--text); border: 1px solid var(--line); font-size: 1.2rem; }
-    .chips { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; background: var(--bg); }
-    .chips:empty { display: none; }
-    .chip { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 4px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); font-size: .85rem; max-width: 100%; }
-    .chip img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; }
-    .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
-    .chip button { padding: 0 6px; background: none; color: var(--muted); font-weight: normal; }
-    .msg .thumbs { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
-    .msg .thumbs img { max-width: 120px; max-height: 120px; border-radius: 8px; }
-    .msg .thumbs .file { font-size: .85rem; padding: 4px 8px; border-radius: 6px; background: var(--card); }
-    .ai-status { width: 100%; font-size: .75rem; color: var(--muted); text-align: center; background: var(--bg); padding-bottom: 2px; }
-    .ai-status b { color: var(--accent); font-weight: 600; }
-    textarea { flex: 1; resize: none; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; min-height: 52px; }
-    button { padding: 0 20px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
-    button:disabled { opacity: .5; cursor: default; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>cnation-붕어빵 타이쿤</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main>
-    <h1>AI Q&amp;A 테스트</h1>
-    <div id="log"><p class="empty">질문을 입력하고 Enter 를 누르세요. (Shift+Enter 줄바꿈)<br />📎 로 사진이나 PDF 를 첨부할 수 있어요.</p></div>
-    <form id="form">
-      <label class="search-toggle"><input type="checkbox" id="search" /> 🔍 항상 웹 검색 (오늘·날씨·뉴스 같은 질문은 자동 검색)</label>
-      <div class="chips" id="chips"></div>
-      <input type="file" id="file" accept="image/*,application/pdf" multiple hidden />
-      <button type="button" class="attach" id="attach" title="사진 또는 PDF 첨부" aria-label="파일 첨부">📎</button>
-      <textarea id="prompt" maxlength="1000" placeholder="무엇이든 물어보세요"></textarea>
-      <button id="send" type="submit">전송</button>
-      <div class="ai-status" id="ai-status">AI 확인 중…</div>
-    </form>
-  </main>
-  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-  <script>
-    const log = document.getElementById('log');
-    const form = document.getElementById('form');
-    const input = document.getElementById('prompt');
-    const send = document.getElementById('send');
-    const search = document.getElementById('search');
-    const fileInput = document.getElementById('file');
-    const chips = document.getElementById('chips');
-    const aiStatus = document.getElementById('ai-status');
+  <div id="game-app">
+    <div id="viewport">
+      
+      <!-- 상단 배경 (시간 경과에 따라 전환) -->
+      <div id="sky-bg"></div>
 
-    // 🔍 체크 상태를 이 브라우저에 기억 (저장이 막혀 있어도 앱은 정상 동작)
-    try {
-      search.checked = localStorage.getItem('webSearch') === 'on';
-    } catch {}
-    search.addEventListener('change', () => {
-      try {
-        localStorage.setItem('webSearch', search.checked ? 'on' : 'off');
-      } catch {}
-    });
+      <!-- 상단 포장마차 차양 -->
+      <img id="curtain-img" src="Assets/Sprites/curtain.png" alt="포장마차 차양">
 
-    // ---- 하단 AI 표시: 사용 가능한 AI 순서 + 마지막으로 답한 AI 강조 ----
-    let providers = [];
-    function renderStatus(lastUsed) {
-      if (!providers.length) {
-        aiStatus.textContent = '사용 가능한 AI 가 없습니다';
-        return;
-      }
-      aiStatus.textContent = 'AI: ';
-      providers.forEach((provider, i) => {
-        if (i) aiStatus.append(' → ');
-        const used = lastUsed && lastUsed.provider === provider.label;
-        const name = used ? `${provider.label} (${lastUsed.model})` : provider.label;
-        if (used) {
-          const b = document.createElement('b');
-          b.textContent = `● ${name}`;
-          aiStatus.appendChild(b);
-        } else {
-          aiStatus.append(name);
-        }
-      });
-    }
-    fetch('/api/status')
-      .then((res) => res.json())
-      .then((data) => { providers = data.providers || []; renderStatus(); })
-      .catch(() => { aiStatus.textContent = ''; });
+      <!-- 상단 정보 바 -->
+      <div id="top-bar">
+        <div class="stat-pill timer-pill">
+          <img src="Assets/Sprites/timer2.png" alt="시계" class="pill-icon">
+          <span id="timer-text">03:30</span>
+        </div>
+        <div class="stat-pill money-pill">
+          <span class="coin-symbol">💰</span>
+          <span id="money-text">0원</span>
+        </div>
+        <button id="bgm-toggle-btn" class="icon-btn" onclick="toggleBgm()" title="배경음악 켜기/끄기">🔊</button>
+      </div>
 
-    // ---- 첨부파일 ----
-    const MAX_FILES = 3;
-    const MAX_TOTAL_BYTES = 3 * 1024 * 1024; // base64 로 바뀌면 약 4MB (Vercel 요청 한도 4.5MB)
-    const MAX_IMAGE_SIDE = 1600;
-    let attachments = []; // { name, mimeType, data(base64), preview(dataURL|null), size }
+      <!-- 손님 영역 -->
+      <div id="customer-container">
+        <div id="customer-wrapper">
+          <img id="customer-img" src="Assets/Sprites/bear2%201.png" alt="손님 캐릭터">
+        </div>
 
-    const readAsDataURL = (blob) => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
+        <div id="dialogue-box">
+          <img id="dialogue-bg" src="Assets/Sprites/textbox.png" alt="말풍선">
+          <div id="dialogue-text">붕어빵 냄새를 맡고 손님이 오고 있어요...</div>
+        </div>
 
-    // 휴대폰 사진은 몇 MB 씩 되므로 긴 변 1600px JPEG 로 줄여서 보냅니다.
-    async function shrinkImage(file) {
-      const url = URL.createObjectURL(file);
-      try {
-        const img = await new Promise((resolve, reject) => {
-          const el = new Image();
-          el.onload = () => resolve(el);
-          el.onerror = () => reject(new Error('이미지를 읽을 수 없습니다.'));
-          el.src = url;
-        });
-        const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.naturalWidth * scale);
-        canvas.height = Math.round(img.naturalHeight * scale);
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL('image/jpeg', 0.85);
-      } finally {
-        URL.revokeObjectURL(url);
-      }
-    }
+        <div id="patience-gauge-wrap">
+          <div id="patience-gauge-fill"></div>
+        </div>
+      </div>
 
-    function renderChips() {
-      chips.textContent = '';
-      attachments.forEach((file, i) => {
-        const chip = document.createElement('div');
-        chip.className = 'chip';
-        if (file.preview) {
-          const img = document.createElement('img');
-          img.src = file.preview;
-          img.alt = '';
-          chip.appendChild(img);
-        }
-        const name = document.createElement('span');
-        name.textContent = file.preview ? file.name : `📄 ${file.name}`;
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.textContent = '✕';
-        remove.setAttribute('aria-label', `${file.name} 삭제`);
-        remove.onclick = () => { attachments.splice(i, 1); renderChips(); };
-        chip.append(name, remove);
-        chips.appendChild(chip);
-      });
-    }
+      <!-- 중앙 3x3 붕어빵 철판 틀 -->
+      <div id="board-container">
+        <div id="mold-grid"></div>
+      </div>
 
-    document.getElementById('attach').onclick = () => fileInput.click();
+      <!-- 하단 작업대 & 도구 & 보관함 -->
+      <div id="workbench">
+        <div id="breadbox-wrap" onclick="handleBreadBoxClick()">
+          <img id="breadbox-img" src="Assets/Sprites/box.png" alt="붕어빵 상자">
+          <div id="breadbox-badge">0개</div>
+          <div id="breadbox-tip">터치하여 손님에게 전달</div>
+        </div>
 
-    fileInput.addEventListener('change', async () => {
-      for (const file of fileInput.files) {
-        if (attachments.length >= MAX_FILES) {
-          alert(`파일은 ${MAX_FILES}개까지 첨부할 수 있습니다.`);
-          break;
-        }
-        try {
-          let dataURL;
-          if (file.type === 'application/pdf') {
-            dataURL = await readAsDataURL(file);
-          } else if (file.type.startsWith('image/') || /\.(heic|heif)$/i.test(file.name)) {
-            dataURL = await shrinkImage(file);
-          } else {
-            alert(`${file.name}: 이미지와 PDF 만 첨부할 수 있습니다.`);
-            continue;
-          }
-          const [header, data] = dataURL.split(',');
-          const mimeType = header.slice(5, header.indexOf(';'));
-          const size = Math.ceil(data.length * 0.75);
-          const total = attachments.reduce((sum, f) => sum + f.size, 0) + size;
-          if (total > MAX_TOTAL_BYTES) {
-            alert(`${file.name}: 첨부파일 합계가 3MB 를 넘습니다.`);
-            continue;
-          }
-          attachments.push({
-            name: file.name,
-            mimeType,
-            data,
-            size,
-            preview: mimeType.startsWith('image/') ? dataURL : null,
-          });
-        } catch (error) {
-          alert(`${file.name}: ${error.message}`);
-        }
-      }
-      fileInput.value = '';
-      renderChips();
-    });
+        <div id="tools-container">
+          <div class="tool-item active" id="tool-kettle" onclick="selectTool(1)">
+            <img class="tool-img" id="tool-img-kettle" src="Assets/Sprites/pottle2.png" alt="반죽 주전자">
+            <span class="tool-label">1. 반죽</span>
+          </div>
 
-    // 마크다운 규칙상 "**서울(Seoul)**은" 처럼 닫는 ** 앞이 문장부호이고 뒤가 한글이면 굵게가 안 됩니다.
-    // 코드 블록(```)이 아닌 부분의 한 줄짜리 **…** 는 직접 <strong> 으로 바꿔 줍니다.
-    function fixCjkBold(text) {
-      return text
-        .split(/(```[\s\S]*?(?:```|$))/)
-        .map((part, i) => (i % 2 ? part : part.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')))
-        .join('');
-    }
+          <div class="tool-item" id="tool-redbean" onclick="selectTool(2)">
+            <img class="tool-img" id="tool-img-redbean" src="Assets/Sprites/redBean2.png" alt="팥 주걱">
+            <span class="tool-label">2. 팥</span>
+          </div>
 
-    // 마크다운을 HTML 로 바꿔서 표시 (라이브러리를 못 불러오면 일반 텍스트로)
-    function renderMarkdown(el, text) {
-      if (window.marked && window.DOMPurify) {
-        el.innerHTML = DOMPurify.sanitize(marked.parse(fixCjkBold(text)));
-        el.querySelectorAll('a').forEach((a) => { a.target = '_blank'; a.rel = 'noopener noreferrer'; });
-        el.classList.add('md');
-      } else {
-        el.textContent = text;
-      }
-    }
+          <div class="tool-item" id="tool-stick" onclick="selectTool(3)">
+            <img class="tool-img" id="tool-img-stick" src="Assets/Sprites/stick.png" alt="뒤집개">
+            <span class="tool-label">3. 뒤집개</span>
+          </div>
+        </div>
+      </div>
 
-    function addMessage(text, kind) {
-      log.querySelector('.empty')?.remove();
-      const el = document.createElement('div');
-      el.className = `msg ${kind}`;
-      el.textContent = text;
-      log.appendChild(el);
-      el.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      return el;
-    }
+      <!-- 시작 모달 화면 -->
+      <div id="start-modal" class="modal-screen">
+        <div class="modal-content start-card">
+          <img src="Assets/Sprites/goodBread%20no%20mold.png" alt="붕어빵" class="title-bread-img">
+          <h1 class="game-title">붕어빵 타이쿤</h1>
+          <p class="game-subtitle">cnation-edition</p>
+          <div class="menu-btn-group">
+            <button class="btn-main" onclick="startGame()">장사 시작하기</button>
+            <button class="btn-sub" onclick="openHelp()">게임 방법</button>
+          </div>
+        </div>
+      </div>
 
-    // 서버가 보내는 NDJSON(한 줄에 JSON 하나) 스트림을 이벤트 단위로 읽습니다.
-    async function* readEvents(res) {
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let newline;
-        while ((newline = buffer.indexOf('\n')) >= 0) {
-          const line = buffer.slice(0, newline).trim();
-          buffer = buffer.slice(newline + 1);
-          if (line) yield JSON.parse(line);
-        }
-      }
-      if (buffer.trim()) yield JSON.parse(buffer);
-    }
+      <!-- 게임 설명 모달 -->
+      <div id="help-modal" class="modal-screen" style="display:none;">
+        <div class="modal-content help-card">
+          <h2>📜 붕어빵 굽는 법</h2>
+          <div class="help-steps">
+            <div class="step-item">
+              <span class="step-badge">1</span>
+              <span><b>반죽 주전자(🫖)</b>를 쥐고 빈 틀을 터치해 반죽을 붓습니다.</span>
+            </div>
+            <div class="step-item">
+              <span class="step-badge">2</span>
+              <span><b>팥통(🫘)</b>을 쥐고 반죽 위에 팥을 올립니다.</span>
+            </div>
+            <div class="step-item">
+              <span class="step-badge">3</span>
+              <span><b>뒤집개(🥢)</b>로 틀을 닫아 굽고, 노릇해지면 한 번 더 뒤집어줍니다!</span>
+            </div>
+            <div class="step-item">
+              <span class="step-badge">4</span>
+              <span>완성된 붕어빵을 뒤집개로 터치해 상자에 넣고, 손님 주문 수량에 맞춰 전달하세요!</span>
+            </div>
+          </div>
+          <button class="btn-main" onclick="closeHelp()">닫기</button>
+        </div>
+      </div>
 
-    function nearBottom() {
-      return window.innerHeight + window.scrollY >= document.body.scrollHeight - 120;
-    }
+      <!-- 게임 오버 정산 모달 -->
+      <div id="gameover-modal" class="modal-screen" style="display:none;">
+        <div class="modal-content result-card">
+          <h2 class="result-title">오늘의 장사 정산</h2>
+          <div class="receipt-box">
+            <div class="receipt-row">
+              <span>판매한 붕어빵 (개당 1,000원)</span>
+              <strong id="res-sold-count">0개</strong>
+            </div>
+            <div class="receipt-row text-profit">
+              <span>판매 매출</span>
+              <strong id="res-sold-money">+0원</strong>
+            </div>
+            <div class="receipt-row">
+              <span>구워낸 붕어빵 (재료비 500원)</span>
+              <strong id="res-created-count">0개</strong>
+            </div>
+            <div class="receipt-row text-cost">
+              <span>재료비 지출</span>
+              <strong id="res-created-cost">-0원</strong>
+            </div>
+            <hr class="receipt-divider">
+            <div class="receipt-row receipt-total">
+              <span>최종 순이익</span>
+              <strong id="res-total-profit">0원</strong>
+            </div>
+          </div>
+          <button class="btn-main" onclick="restartGame()">내일 다시 장사하기</button>
+        </div>
+      </div>
 
-    function addFooter(answer, text) {
-      const footer = document.createElement('div');
-      footer.className = 'sources';
-      footer.textContent = text;
-      answer.appendChild(footer);
-      return footer;
-    }
+    </div>
+  </div>
 
-    function addSources(answer, sources) {
-      const box = addFooter(answer, '출처: ');
-      sources.forEach((source, i) => {
-        const link = document.createElement('a');
-        link.href = source.url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.textContent = `[${i + 1}] ${source.title}`;
-        box.appendChild(link);
-      });
-    }
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const prompt = input.value.trim();
-      const files = attachments;
-      if (!prompt && !files.length) return;
-
-      const userMsg = addMessage(prompt, 'user');
-      if (files.length) {
-        const thumbs = document.createElement('div');
-        thumbs.className = 'thumbs';
-        for (const file of files) {
-          if (file.preview) {
-            const img = document.createElement('img');
-            img.src = file.preview;
-            img.alt = file.name;
-            thumbs.appendChild(img);
-          } else {
-            const tag = document.createElement('div');
-            tag.className = 'file';
-            tag.textContent = `📄 ${file.name}`;
-            thumbs.appendChild(tag);
-          }
-        }
-        userMsg.prepend(thumbs);
-      }
-      input.value = '';
-      attachments = [];
-      renderChips();
-      send.disabled = true;
-      const answer = addMessage('생각 중…', 'pending');
-      const body = document.createElement('div');
-      let reply = '';
-      let meta = null;
-      const sources = [];
-      const notices = [];
-      let scheduled = false;
-
-      // 글자가 들어올 때마다 다시 그리되, 화면 갱신 주기(약 60fps)에 맞춰 한 번씩만
-      const render = () => {
-        if (scheduled) return;
-        scheduled = true;
-        requestAnimationFrame(() => {
-          scheduled = false;
-          const stick = nearBottom();
-          renderMarkdown(body, reply);
-          if (stick) window.scrollTo(0, document.body.scrollHeight);
-        });
-      };
-
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt,
-            search: search.checked,
-            files: files.map(({ name, mimeType, data }) => ({ name, mimeType, data })),
-          }),
-        });
-        if (!res.ok || !res.headers.get('Content-Type')?.includes('ndjson')) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || `요청 실패 (HTTP ${res.status})`);
-        }
-
-        for await (const event of readEvents(res)) {
-          if (event.type === 'meta') {
-            meta = event;
-            renderStatus(meta);
-          } else if (event.type === 'delta') {
-            if (!reply) {
-              answer.textContent = '';
-              answer.className = 'msg';
-              answer.appendChild(body);
-            }
-            reply += event.text;
-            render();
-          } else if (event.type === 'sources') {
-            sources.push(...event.sources);
-          } else if (event.type === 'notice') {
-            notices.push(event.text);
-          } else if (event.type === 'error') {
-            throw new Error(event.error);
-          }
-        }
-
-        renderMarkdown(body, reply);
-        if (meta) {
-          const searchLabel = meta.search ? (meta.autoSearch ? ' · 🔍 자동 검색' : ' · 🔍 검색 사용') : '';
-          addFooter(answer, `${meta.provider} · ${meta.model}${searchLabel}`);
-        }
-        if (sources.length) addSources(answer, sources);
-        notices.forEach((text) => addFooter(answer, `ℹ️ ${text}`));
-      } catch (error) {
-        if (reply) {
-          // 답변 도중에 끊긴 경우: 받은 부분은 남기고 오류를 덧붙입니다.
-          renderMarkdown(body, reply);
-          addFooter(answer, `⚠️ ${error.message}`).classList.add('error');
-        } else {
-          answer.textContent = `오류: ${error.message}`;
-          answer.className = 'msg error';
-        }
-      } finally {
-        send.disabled = false;
-        input.focus();
-      }
-    });
-
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-        event.preventDefault();
-        form.requestSubmit();
-      }
-    });
-  </script>
+  <script src="game.js"></script>
 </body>
 </html>
