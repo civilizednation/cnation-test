@@ -1,233 +1,154 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>붕어빵 장사</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Base styles */
-        body { font-family: 'Noto Sans KR', 'Helvetica Neue', sans-serif; }
-        
-        /* Sparkle Animation for Ready Bungeoppang */
-        .sparkle {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background-color: white;
-            border-radius: 50%;
-            box-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fef08a;
-            animation: sparkle-anim 1.5s infinite;
-            opacity: 0;
-        }
-        @keyframes sparkle-anim {
-            0%, 100% { opacity: 0; transform: scale(0.5); }
-            50% { opacity: 1; transform: scale(1.2); }
-        }
-
-        /* Smoke Animation for Burnt Bungeoppang */
-        .smoke {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background-color: #a1a1aa;
-            border-radius: 50%;
-            opacity: 0;
-            animation: smoke-anim 3s infinite linear;
-        }
-        @keyframes smoke-anim {
-            0% { transform: translateY(0) scale(1); opacity: 0.6; }
-            100% { transform: translateY(-40px) scale(2.5); opacity: 0; }
-        }
-
-        /* Gentle Bobbing for Ready Bungeoppang on mold */
-        .animate-gentle-bob {
-            animation: gentle-bob 1.5s ease-in-out infinite;
-        }
-        @keyframes gentle-bob {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-
-        /* Ready Pulse Animation */
-        .animate-ready-pulse {
-            animation: ready-pulse 1s ease-in-out infinite;
-        }
-        @keyframes ready-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.08); }
-        }
-
-        /* Ready Glow Animation */
-        .glow-ready {
-            animation: glow-ready-pulse 2s infinite ease-in-out;
-        }
-        @keyframes glow-ready-pulse {
-            0%, 100% {
-                box-shadow: inset 0 0 15px #facc15, 0 0 10px #facc15;
-            }
-            50% {
-                box-shadow: inset 0 0 25px #fbbf24, 0 0 20px #fbbf24;
-            }
-        }
-        
-        /* Pop-in animation for new customers */
-        .animate-customer-pop-in {
-            animation: customer-pop-in 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
-        }
-        @keyframes customer-pop-in {
-            0% {
-                transform: translateY(15px) scale(0.9);
-                opacity: 0;
-            }
-            100% {
-                transform: translateY(0) scale(1);
-                opacity: 1;
-            }
-        }
-        
-        /* Fly-out animation for served items */
-        .serve-particle {
-            position: absolute;
-            width: 4rem; /* 64px */
-            height: 4rem; /* 64px */
-            bottom: 25%;
-            animation: serve-fly-out 1s ease-out forwards;
-        }
-        @keyframes serve-fly-out {
-            0% { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-150px) scale(0.5); opacity: 0; }
-        }
-        
-        /* Tutorial Modal Icon Animations */
-        .animate-icon-bob { animation: icon-bob 2s ease-in-out infinite; }
-        @keyframes icon-bob {
-          0%, 100% { transform: translateY(0) rotate(0); }
-          50% { transform: translateY(-5px) rotate(3deg); }
-        }
-        .animate-icon-wiggle { animation: icon-wiggle 2.5s ease-in-out infinite; }
-        @keyframes icon-wiggle {
-          0%, 100% { transform: translateX(0) rotate(0); }
-          25% { transform: translateX(-4px) rotate(-3deg); }
-          75% { transform: translateX(4px) rotate(3deg); }
-        }
-        .animate-icon-pop { animation: icon-pop 1.5s ease-in-out infinite; }
-        @keyframes icon-pop {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.15); }
-        }
-        
-        /* Start Screen Animation CSS */
-        @keyframes hand-pour {
-          0% { transform: translate(0, -20px) rotate(0deg); opacity: 0; }
-          20%, 60% { transform: translate(-20px, 10px) rotate(-30deg); opacity: 1; }
-          100% { transform: translate(-40px, 40px) rotate(-60deg); opacity: 0; }
-        }
-        .animate-hand-pour { animation: hand-pour 2s ease-in-out forwards; }
-        
-        @keyframes fill-in {
-          from { clip-path: polygon(0 100%, 100% 100%, 100% 100%, 0% 100%); }
-          to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%); }
-        }
-        .animate-fill-in { animation: fill-in 1.5s 0.3s ease-out forwards; }
-        
-        @keyframes pop-in-subtle {
-          from { transform: scale(0.8); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-        .animate-pop-in-subtle { animation: pop-in-subtle 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both; }
-        
-        /* Glow for selected mold */
-        .glow-on-select {
-            animation: glow-pulse 1.5s infinite ease-in-out;
-        }
-        @keyframes glow-pulse {
-            0%, 100% {
-                box-shadow: 0 0 8px #fde047, 0 0 16px #facc15;
-            }
-            50% {
-                box-shadow: 0 0 12px #fef08a, 0 0 24px #fde047;
-            }
-        }
-
-        /* Floating background animation */
-        @keyframes float {
-          0% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-20px) rotate(5deg); }
-          100% { transform: translateY(0px) rotate(0deg); }
-        }
-        
-        /* Tip Animation */
-        .tip-particle {
-            position: absolute;
-            transform: translateX(-50%); /* to center it horizontally on the left value */
-            animation: tip-fly-up 1.5s ease-out forwards;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 8px;
-            border-width: 2px;
-            border-style: solid;
-            border-radius: 9999px;
-            font-weight: bold;
-            white-space: nowrap; /* Prevent text wrapping */
-            z-index: 20;
-        }
-        @keyframes tip-fly-up {
-            0% { transform: translateY(0) scale(0.8) translateX(-50%); opacity: 0; }
-            20% { transform: translateY(-20px) scale(1.1) translateX(-50%); opacity: 1; }
-            100% { transform: translateY(-120px) scale(0.9) translateX(-50%); opacity: 0; }
-        }
-        
-        /* Card flip animation classes */
-        .transform-style-3d { transform-style: preserve-3d; }
-        .rotate-y-180 { transform: rotateY(180deg); }
-        .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-
-        /* Ladder Game Animation */
-        .ladder-path {
-            stroke-dasharray: var(--path-length);
-            stroke-dashoffset: var(--path-length);
-            animation: draw-path 3s ease-in-out forwards;
-        }
-        @keyframes draw-path {
-            to {
-                stroke-dashoffset: 0;
-            }
-        }
-
-        /* Explosion animation for shooter game */
-        .explosion {
-            position: absolute;
-            width: 4rem; /* 64px */
-            height: 4rem; /* 64px */
-            background-image: radial-gradient(circle, #facc15, #f59e0b, transparent 60%);
-            border-radius: 50%;
-            transform: scale(0);
-            animation: explode-anim 0.4s ease-out forwards;
-        }
-        @keyframes explode-anim {
-            0% { transform: scale(0); opacity: 1; }
-            100% { transform: scale(1.5); opacity: 0; }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>cnation-붕어빵 타이쿤</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="root"></div>
-    <script type="importmap">
-        {
-          "imports": {
-            "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-            "react/": "https://aistudiocdn.com/react@^19.1.1/",
-            "react": "https://aistudiocdn.com/react@^19.1.1",
-            "@google/genai": "https://esm.run/@google/genai"
-          }
-        }
-    </script>
-    <script type="module" src="/index.tsx"></script>
+  <div id="game-app">
+    <div id="viewport">
+      
+      <!-- 상단 배경 (시간 경과에 따라 전환) -->
+      <div id="sky-bg"></div>
+
+      <!-- 상단 포장마차 차양 -->
+      <img id="curtain-img" src="Assets/Sprites/curtain.png" alt="포장마차 차양">
+
+      <!-- 상단 정보 바 -->
+      <div id="top-bar">
+        <div class="stat-pill timer-pill">
+          <img src="Assets/Sprites/timer2.png" alt="시계" class="pill-icon">
+          <span id="timer-text">03:30</span>
+        </div>
+        <div class="stat-pill money-pill">
+          <span class="coin-symbol">💰</span>
+          <span id="money-text">0원</span>
+        </div>
+        <button id="bgm-toggle-btn" class="icon-btn" onclick="toggleBgm()" title="배경음악 켜기/끄기">🔊</button>
+      </div>
+
+      <!-- 손님 영역 -->
+      <div id="customer-container">
+        <div id="customer-wrapper">
+          <img id="customer-img" src="Assets/Sprites/bear2%201.png" alt="손님 캐릭터">
+        </div>
+
+        <div id="dialogue-box">
+          <img id="dialogue-bg" src="Assets/Sprites/textbox.png" alt="말풍선">
+          <div id="dialogue-text">붕어빵 냄새를 맡고 손님이 오고 있어요...</div>
+        </div>
+
+        <div id="patience-gauge-wrap">
+          <div id="patience-gauge-fill"></div>
+        </div>
+      </div>
+
+      <!-- 중앙 3x3 붕어빵 철판 틀 -->
+      <div id="board-container">
+        <div id="mold-grid"></div>
+      </div>
+
+      <!-- 하단 작업대 & 도구 & 보관함 -->
+      <div id="workbench">
+        <div id="breadbox-wrap" onclick="handleBreadBoxClick()">
+          <img id="breadbox-img" src="Assets/Sprites/box.png" alt="붕어빵 상자">
+          <div id="breadbox-badge">0개</div>
+          <div id="breadbox-tip">터치하여 손님에게 전달</div>
+        </div>
+
+        <div id="tools-container">
+          <div class="tool-item active" id="tool-kettle" onclick="selectTool(1)">
+            <img class="tool-img" id="tool-img-kettle" src="Assets/Sprites/pottle2.png" alt="반죽 주전자">
+            <span class="tool-label">1. 반죽</span>
+          </div>
+
+          <div class="tool-item" id="tool-redbean" onclick="selectTool(2)">
+            <img class="tool-img" id="tool-img-redbean" src="Assets/Sprites/redBean2.png" alt="팥 주걱">
+            <span class="tool-label">2. 팥</span>
+          </div>
+
+          <div class="tool-item" id="tool-stick" onclick="selectTool(3)">
+            <img class="tool-img" id="tool-img-stick" src="Assets/Sprites/stick.png" alt="뒤집개">
+            <span class="tool-label">3. 뒤집개</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 시작 모달 화면 -->
+      <div id="start-modal" class="modal-screen">
+        <div class="modal-content start-card">
+          <img src="Assets/Sprites/goodBread%20no%20mold.png" alt="붕어빵" class="title-bread-img">
+          <h1 class="game-title">붕어빵 타이쿤</h1>
+          <p class="game-subtitle">cnation-edition</p>
+          <div class="menu-btn-group">
+            <button class="btn-main" onclick="startGame()">장사 시작하기</button>
+            <button class="btn-sub" onclick="openHelp()">게임 방법</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 게임 설명 모달 -->
+      <div id="help-modal" class="modal-screen" style="display:none;">
+        <div class="modal-content help-card">
+          <h2>📜 붕어빵 굽는 법</h2>
+          <div class="help-steps">
+            <div class="step-item">
+              <span class="step-badge">1</span>
+              <span><b>반죽 주전자(🫖)</b>를 쥐고 빈 틀을 터치해 반죽을 붓습니다.</span>
+            </div>
+            <div class="step-item">
+              <span class="step-badge">2</span>
+              <span><b>팥통(🫘)</b>을 쥐고 반죽 위에 팥을 올립니다.</span>
+            </div>
+            <div class="step-item">
+              <span class="step-badge">3</span>
+              <span><b>뒤집개(🥢)</b>로 틀을 닫아 굽고, 노릇해지면 한 번 더 뒤집어줍니다!</span>
+            </div>
+            <div class="step-item">
+              <span class="step-badge">4</span>
+              <span>완성된 붕어빵을 뒤집개로 터치해 상자에 넣고, 손님 주문 수량에 맞춰 전달하세요!</span>
+            </div>
+          </div>
+          <button class="btn-main" onclick="closeHelp()">닫기</button>
+        </div>
+      </div>
+
+      <!-- 게임 오버 정산 모달 -->
+      <div id="gameover-modal" class="modal-screen" style="display:none;">
+        <div class="modal-content result-card">
+          <h2 class="result-title">오늘의 장사 정산</h2>
+          <div class="receipt-box">
+            <div class="receipt-row">
+              <span>판매한 붕어빵 (개당 1,000원)</span>
+              <strong id="res-sold-count">0개</strong>
+            </div>
+            <div class="receipt-row text-profit">
+              <span>판매 매출</span>
+              <strong id="res-sold-money">+0원</strong>
+            </div>
+            <div class="receipt-row">
+              <span>구워낸 붕어빵 (재료비 500원)</span>
+              <strong id="res-created-count">0개</strong>
+            </div>
+            <div class="receipt-row text-cost">
+              <span>재료비 지출</span>
+              <strong id="res-created-cost">-0원</strong>
+            </div>
+            <hr class="receipt-divider">
+            <div class="receipt-row receipt-total">
+              <span>최종 순이익</span>
+              <strong id="res-total-profit">0원</strong>
+            </div>
+          </div>
+          <button class="btn-main" onclick="restartGame()">내일 다시 장사하기</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="game.js"></script>
 </body>
 </html>
