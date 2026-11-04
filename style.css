@@ -47,6 +47,7 @@ body {
   left: 0;
   right: 0;
   height: 220px;
+  background-color: #9fd3f2; /* 배경 그림이 없을 때 보이는 하늘색 */
   background-image: url('Assets/Sprites/morning.png');
   background-size: cover;
   background-position: center bottom;

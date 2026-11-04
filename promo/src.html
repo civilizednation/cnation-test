@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>무석연합교회 성가대연습앱</title>
+<style>
+@font-face{font-family:P;src:url(PretendardVariable.woff2) format('woff2-variations');font-weight:45 920;font-display:block}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#F3EEE5}
+body{font-family:P,sans-serif;-webkit-font-smoothing:antialiased;color:#111;font-feature-settings:"tnum"}
+.a{position:absolute;left:0;top:0}
+#stage{position:absolute;left:0;top:0;width:1080px;height:1920px;transform-origin:0 0}
+#floor{position:absolute;left:250px;top:1752px;width:580px;height:40px;border-radius:50%;background:rgba(80,60,35,.13);filter:blur(18px)}
+#phone{position:absolute;left:146.75px;top:96px;width:786.5px;height:1671.8px;border-radius:120px;background:#0a0a0a}
+#screen{position:absolute;left:13px;top:13px;width:390px;height:844px;transform:scale(1.95);transform-origin:0 0;border-radius:55px;overflow:hidden;background:#101010}
+.win{position:absolute;overflow:hidden}
+.t{white-space:nowrap;line-height:1}
+.card{position:absolute;left:16px;width:358px;height:88px;border-radius:20px;background:#fff}
+.num{position:absolute;left:16px;top:16px;width:56px;height:56px;border-radius:15px;background:#F1F1F1;font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center}
+.ct{position:absolute;left:88px;top:24px;font-size:17px;font-weight:700}
+.cs{position:absolute;left:88px;top:50px;font-size:14px;font-weight:500;color:#8E8E8E}
+.ring{position:absolute;left:312px;top:29px;width:30px;height:30px}
+.chip{height:40px;border-radius:20px;padding:0 18px;display:flex;align-items:center;font-size:16px;font-weight:600;background:#F2F2F2}
+.chip.on{background:#111;color:#fff}
+.col{position:absolute;overflow:hidden}
+.strip{position:absolute;left:0;top:0;width:100%}
+.strip div{display:flex;align-items:center;justify-content:center}
+.hbar{position:absolute;left:128px;top:831px;width:134px;height:5px;border-radius:3px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs id="fdefs"></defs>
+</svg>
+<div id="stage">
+  <div id="floor"></div>
+  <div id="phone">
+    <div id="screen">
+      <div id="home" class="a" style="width:390px;height:844px;background:#101010"></div>
+      <div id="win" class="win" style="background:#FF6A3D">
+        <div id="glyphA" class="a"></div>
+        <div id="sheet" class="a" style="width:390px;height:844px;background:#F2F2F2;overflow:hidden">
+          <div id="s1scroll" class="a" style="width:390px"></div>
+          <div id="s1bar" class="a" style="width:390px;height:96px;background:#fff;border-bottom:1px solid #E4E4E4">
+            <div class="t a" style="top:62px;width:390px;text-align:center;font-size:17px;font-weight:700">성가대연습앱</div>
+          </div>
+          <div class="hbar" style="background:#111"></div>
+        </div>
+      </div>
+      <div id="win2" class="win" style="background:#fff"><div id="s2" class="a" style="width:390px;height:844px"></div></div>
+      <div id="win3" class="win" style="background:#FF6A3D">
+        <div id="s3" class="a" style="width:390px;height:844px;transform-origin:0 0"></div>
+        <div id="btnLabel" class="t a" style="font-size:18px;font-weight:700;color:#fff">연습 마치기</div>
+        <div id="glyphB" class="a"></div>
+      </div>
+      <div id="touch" class="a"></div>
+      <div id="ring" class="a" style="border-radius:50%;border-style:solid;border-color:rgba(128,128,128,.5)"></div>
+      <div class="a" style="left:132.5px;top:11px;width:125px;height:37px;border-radius:19px;background:#000"></div>
+    </div>
+  </div>
+</div>
+<script>
+// ───────────────────────── 기본 수학 ─────────────────────────
+const ORANGE='#FF6A3D', SW=390, SH=844, PX=1.95;
+const SCR={x:146.75+13, y:96+13};            // 화면 원점(스테이지 px)
+const Z=0.82, W=10.5;                         // 감쇠비 0.82 → 오버슈트 ≈1%
+function spring(t,w=W,z=Z){                   // 0→1 닫힌 형태 스텝 응답
+  if(t<=0) return 0;
+  const wd=w*Math.sqrt(1-z*z);
+  return 1-Math.exp(-z*w*t)*(Math.cos(wd*t)+(z*w/wd)*Math.sin(wd*t));
+}
+function springV(x0,v0,x1,t,w=W,z=Z){         // 초기 속도가 있는 스프링
+  if(t<=0) return x0;
+  const wd=w*Math.sqrt(1-z*z), A=x0-x1, B=(v0+z*w*A)/wd;
+  return x1+Math.exp(-z*w*t)*(A*Math.cos(wd*t)+B*Math.sin(wd*t));
+}
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const lerp=(a,b,k)=>a+(b-a)*k;
+const easeOut3=x=>1-Math.pow(1-clamp(x),3);
+const lerpR=(A,B,k)=>({x:lerp(A.x,B.x,k),y:lerp(A.y,B.y,k),w:lerp(A.w,B.w,k),h:lerp(A.h,B.h,k)});
+function hex(c){return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)]}
+function mix(a,b,k){const A=hex(a),B=hex(b);return `rgb(${A.map((v,i)=>Math.round(lerp(v,B[i],k))).join(',')})`}
+function hash(i){const x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x)}
+const $=id=>document.getElementById(id);
+function mk(tag,parent,css,html){const e=document.createElement(tag);if(css)e.style.cssText=css;if(html!=null)e.innerHTML=html;parent.appendChild(e);return e}
+
+// 방향성 모션 블러(SVG feGaussianBlur, 축별 표준편차)
+const FIL={};
+function filt(id){
+  const d=$('fdefs');
+  d.insertAdjacentHTML('beforeend',`<filter id="${id}" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="0 0"/></filter>`);
+  FIL[id]=d.lastElementChild.firstElementChild;
+}
+function blur(el,id,sx,sy){
+  sx=Math.min(Math.abs(sx),40); sy=Math.min(Math.abs(sy),40);
+  if(sx<0.2&&sy<0.2){el.style.filter='none';return}
+  FIL[id].setAttribute('stdDeviation',`${sx.toFixed(2)} ${sy.toFixed(2)}`);
+  el.style.filter=`url(#${id})`;
+}
+const MB=0.28/60;      // 속도(pt/s) → 블러 σ(pt): 한 프레임 이동량의 28%
+
+const note=c=>`<svg viewBox="0 0 100 100" width="100%" height="100%"><g fill="${c}"><path d="M33 30 L80 19 L80 31 L33 42 Z"/><rect x="33" y="30" width="7" height="42"/><rect x="73" y="19" width="7" height="42"/><ellipse cx="27" cy="72" rx="13" ry="9.5" transform="rotate(-22 27 72)"/><ellipse cx="67" cy="61" rx="13" ry="9.5" transform="rotate(-22 67 61)"/></g></svg>`;
+
+// ───────────────────────── 홈 화면 ─────────────────────────
+const ICON={x:118,y:360,w:62,h:62}, IR=14;
+const home=$('home');
+const homeIcons=mk('div',home,'position:absolute;left:0;top:0;width:390px;height:844px;transform-origin:149px 391px');
+(function(){
+  const tones=['#2A2A2A','#D8D8D8','#474747','#8A8A8A','#EFEFEF','#363636','#6B6B6B','#BEBEBE'];
+  const glyphs=['dot','ring','bar','sq','bars','half','plus','tri'];
+  const put=(x,y,k)=>{
+    const bg=tones[k%8], fg=hex(bg)[0]>128?'#151515':'#F2F2F2';
+    const ic=mk('div',homeIcons,`position:absolute;left:${x}px;top:${y}px;width:62px;height:62px;border-radius:${IR}px;background:${bg}`);
+    const g=glyphs[(k*5+3)%8], c=`position:absolute;`;
+    if(g==='dot') mk('div',ic,c+`left:19px;top:19px;width:24px;height:24px;border-radius:50%;background:${fg}`);
+    if(g==='ring') mk('div',ic,c+`left:16px;top:16px;width:30px;height:30px;border-radius:50%;border:5px solid ${fg}`);
+    if(g==='bar') mk('div',ic,c+`left:16px;top:28px;width:30px;height:6px;border-radius:3px;background:${fg}`);
+    if(g==='sq') mk('div',ic,c+`left:20px;top:20px;width:22px;height:22px;border-radius:6px;background:${fg}`);
+    if(g==='bars'){for(let j=0;j<3;j++) mk('div',ic,c+`left:${18+j*10}px;top:${36-j*7}px;width:6px;height:${8+j*7}px;border-radius:2px;background:${fg}`)}
+    if(g==='half') mk('div',ic,c+`left:17px;top:17px;width:28px;height:28px;border-radius:50%;background:linear-gradient(90deg,${fg} 50%,transparent 50%);border:3px solid ${fg}`);
+    if(g==='plus'){mk('div',ic,c+`left:28px;top:17px;width:6px;height:28px;border-radius:3px;background:${fg}`);mk('div',ic,c+`left:17px;top:28px;width:28px;height:6px;border-radius:3px;background:${fg}`)}
+    if(g==='tri') mk('div',ic,c+`left:19px;top:18px;width:0;height:0;border-left:13px solid transparent;border-right:13px solid transparent;border-bottom:24px solid ${fg}`);
+    return ic;
+  };
+  let k=0;
+  for(let r=0;r<5;r++)for(let c=0;c<4;c++){
+    const x=26+c*92,y=72+r*96;
+    if(x===ICON.x&&y===ICON.y){
+      const ic=mk('div',homeIcons,`position:absolute;left:${x}px;top:${y}px;width:62px;height:62px;border-radius:${IR}px;background:${ORANGE}`);
+      ic.id='appIcon';
+      mk('div',ic,'position:absolute;left:14px;top:14px;width:34px;height:34px',note('#fff'));
+    } else put(x,y,k++);
+  }
+  mk('div',homeIcons,'position:absolute;left:12px;top:738px;width:366px;height:92px;border-radius:34px;background:#1F1F1F');
+  for(let c=0;c<4;c++) put(26+c*92,753,k++ +3);
+})();
+
+// ───────────────────────── 화면 1 : 곡 목록 ─────────────────────────
+const SECTIONS=[
+  {h:'주일 오전예배 · 10월 27일',songs:[[79,'주 하나님 지으신 모든 세계',.8],[305,'나 같은 죄인 살리신',1],[8,'거룩 거룩 거룩',.6],[338,'내 주를 가까이 하게 함은',.45]]},
+  {h:'오후 찬양예배 · 10월 27일',songs:[[384,'나의 갈 길 다 가도록',.7],[438,'내 영혼이 은총 입어',.5],[563,'예수 사랑하심은',.9],[494,'만세 반석 열리니',.3]]},
+  {h:'추수감사절 특송 · 11월 16일',songs:[[589,'넓은 들에 익은 곡식',.35],[587,'감사하는 성도여',.2],[590,'논밭에 오곡백과',.1]]},
+];
+const s1=$('s1scroll');
+const S1ITEMS=[];       // 등장 순서대로 [element, contentY]
+let TARGET=null, CONTENT_H=0;
+(function(){
+  const hd=mk('div',s1,'position:absolute;left:24px;top:62px;display:flex;align-items:center;gap:7px');
+  mk('div',hd,'width:20px;height:20px',note(ORANGE));
+  mk('div',hd,'font-size:15px;font-weight:600;color:#8E8E8E',null).className='t';
+  hd.lastChild.textContent='무석연합교회';
+  S1ITEMS.push([hd,62]);
+  const ti=mk('div',s1,'position:absolute;left:24px;top:92px;font-size:34px;font-weight:800;letter-spacing:-0.5px');
+  ti.className='t'; ti.textContent='성가대연습앱'; S1ITEMS.push([ti,92]);
+  let y=160;
+  for(const sec of SECTIONS){
+    const h=mk('div',s1,`position:absolute;left:24px;top:${y}px;font-size:17px;font-weight:700`);
+    h.className='t'; h.textContent=sec.h; S1ITEMS.push([h,y]);
+    y+=34;
+    for(const [n,title,p] of sec.songs){
+      const c=mk('div',s1,`top:${y}px`); c.className='card';
+      const num=mk('div',c); num.className='num'; num.textContent=n;
+      const ct=mk('div',c); ct.className='ct t'; ct.textContent=title;
+      const cs=mk('div',c); cs.className='cs t'; cs.textContent=`찬송가 ${n}장 · 4부`;
+      const L=2*Math.PI*13;
+      const ring=mk('div',c,null,`<svg viewBox="0 0 30 30" width="30" height="30"><circle cx="15" cy="15" r="13" fill="none" stroke="#ECECEC" stroke-width="3.5"/><circle cx="15" cy="15" r="13" fill="none" stroke="${ORANGE}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${L*p} ${L}" transform="rotate(-90 15 15)"/></svg>`);
+      ring.className='ring';
+      S1ITEMS.push([c,y]);
+      if(n===589) TARGET={el:c,y,num,ring,ct,cs,title,n};
+      y+=98;
+    }
+    y+=20;
+  }
+  CONTENT_H=y+100;
+  s1.style.height=CONTENT_H+'px';
+})();
+
+// 스크롤: 손가락이 끄는 동안은 손가락 그대로, 놓으면 그 속도로 지수 감속(관성)
+const TAU=0.38;
+const FLICK=[{t0:2.5,T:0.28,D:95},{t0:4.0,T:0.28,D:90}];
+function fingerD(f,t){const s=clamp((t-f.t0)/f.T);return f.D*(1-Math.cos(Math.PI*s/2))}
+function flick(f,t){
+  if(t<=f.t0) return 0;
+  if(t<f.t0+f.T) return fingerD(f,t);
+  const v=f.D*Math.PI/2/f.T;
+  return f.D+v*TAU*(1-Math.exp(-(t-f.t0-f.T)/TAU));
+}
+function scrollOff(t){return flick(FLICK[0],Math.min(t,FLICK[1].t0))+flick(FLICK[1],t)}
+
+// ───────────────────────── 화면 2 : 곡 상세 ─────────────────────────
+const s2=$('s2');
+const S2G=[];
+const PARTS=['S','A','T','B'];
+const NB=46, BX=50, BSTEP=(374-BX)/NB;
+const BARS=[];
+let SW2=null, KNOB=null, PH1=null, PH2=null, PHT=null;
+(function(){
+  const g0=mk('div',s2,'position:absolute;left:0;top:0;width:390px;height:120px');
+  mk('div',g0,'position:absolute;left:14px;top:54px;width:28px;height:28px','<svg viewBox="0 0 28 28" width="28" height="28"><path d="M17 6 L9 14 L17 22" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  S2G.push(g0);
+  // 악보
+  const g1=mk('div',s2,'position:absolute;left:16px;top:176px;width:358px;height:196px;border-radius:20px;background:#F5F5F5;overflow:hidden');
+  let svg='<svg viewBox="0 0 358 196" width="358" height="196">';
+  const sys=[36,118];
+  for(const y0 of sys){
+    for(let i=0;i<5;i++) svg+=`<rect x="18" y="${y0+i*9}" width="322" height="1.2" fill="#2A2A2A"/>`;
+    svg+=`<rect x="18" y="${y0}" width="1.4" height="37" fill="#2A2A2A"/><rect x="339" y="${y0}" width="1.4" height="37" fill="#2A2A2A"/>`;
+    for(let m=1;m<4;m++) svg+=`<rect x="${18+m*80.5}" y="${y0}" width="1.2" height="37" fill="#2A2A2A"/>`;
+    for(let j=0;j<14;j++){
+      const x=34+j*22.2+(j%4===0?4:0), st=Math.floor(hash(j+y0)*7), y=y0+36-st*4.5;
+      const up=st<4;
+      svg+=`<ellipse cx="${x}" cy="${y}" rx="5.4" ry="4" transform="rotate(-20 ${x} ${y})" fill="#111"/>`;
+      svg+=up?`<rect x="${x+4.3}" y="${y-26}" width="1.3" height="26" fill="#111"/>`:`<rect x="${x-5.6}" y="${y}" width="1.3" height="26" fill="#111"/>`;
+    }
+  }
+  svg+='</svg>';
+  g1.innerHTML=svg;
+  PH1=mk('div',g1,`position:absolute;left:0;top:24px;width:2.5px;height:62px;border-radius:2px;background:${ORANGE}`);
+  PH2=mk('div',g1,`position:absolute;left:0;top:106px;width:2.5px;height:62px;border-radius:2px;background:${ORANGE}`);
+  S2G.push(g1);
+  // 파트 칩
+  const g2=mk('div',s2,'position:absolute;left:16px;top:396px;display:flex;gap:8px');
+  ['소프라노','알토','테너','베이스'].forEach((n,i)=>{const c=mk('div',g2);c.className='chip'+(i===1?' on':'');c.textContent=n});
+  S2G.push(g2);
+  // 파트별 파형
+  const g3=mk('div',s2,'position:absolute;left:0;top:460px;width:390px;height:170px');
+  PARTS.forEach((p,r)=>{
+    const lb=mk('div',g3,`position:absolute;left:18px;top:${r*42+12}px;font-size:16px;font-weight:700`);lb.className='t';lb.textContent=p;
+    const row=[];
+    for(let j=0;j<NB;j++){
+      const h=7+26*Math.pow(hash(r*97+j*3.1),1.3)*(0.55+0.45*Math.sin(j*0.37+r));
+      const b=mk('div',g3,`position:absolute;left:${BX+j*BSTEP}px;width:3.6px;border-radius:2px`);
+      row.push([b,Math.abs(h),r*42+20]);
+    }
+    BARS.push(row);
+  });
+  PHT=mk('div',g3,`position:absolute;left:0;top:0;width:2px;height:166px;border-radius:1px;background:${ORANGE}`);
+  S2G.push(g3);
+  // 토글
+  const g4=mk('div',s2,'position:absolute;left:0;top:648px;width:390px;height:52px');
+  const tl=mk('div',g4,'position:absolute;left:18px;top:17px;font-size:17px;font-weight:600');tl.className='t';tl.textContent='내 파트만 크게 듣기';
+  SW2=mk('div',g4,'position:absolute;left:323px;top:10px;width:51px;height:31px;border-radius:16px');
+  KNOB=mk('div',SW2,'position:absolute;left:2px;top:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.22)');
+  S2G.push(g4);
+  // 버튼
+  const g5=mk('div',s2,`position:absolute;left:16px;top:740px;width:358px;height:58px;border-radius:29px;background:${ORANGE}`);
+  const bl=mk('div',g5,'position:absolute;left:0;top:20px;width:358px;text-align:center;font-size:18px;font-weight:700;color:#fff');bl.className='t';bl.textContent='연습 마치기';
+  S2G.push(g5);
+  const hb=mk('div',s2,'background:#111');hb.className='hbar';
+})();
+const S2TITLE=mk('div',s2,'position:absolute;left:0;top:0;font-size:28px;font-weight:700;transform-origin:0 0');
+S2TITLE.className='t'; S2TITLE.textContent=TARGET.title;
+const S2SUB=mk('div',s2,'position:absolute;left:0;top:0;font-size:15px;font-weight:500;color:#8E8E8E;transform-origin:0 0');
+S2SUB.className='t'; S2SUB.textContent=`찬송가 ${TARGET.n}장 · 4부`;
+const S2NUM=mk('div',s2,'position:absolute;left:0;top:0;width:56px;height:56px;border-radius:15px;background:#F1F1F1;font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;transform-origin:28px 28px');
+S2NUM.textContent=TARGET.n;
+const S2RING=mk('div',s2,'position:absolute;left:0;top:0;width:30px;height:30px;transform-origin:15px 15px',TARGET.ring.innerHTML);
+
+// ───────────────────────── 화면 3 : 결과 ─────────────────────────
+const s3=$('s3');
+const S3G=[];
+const DIGH=176;
+const ODO=[];          // 굴러가는 숫자 열
+function odoCol(parent,x,y,w,h,fs,id){
+  const c=mk('div',parent,`left:${x}px;top:${y}px;width:${w}px;height:${h}px`);c.className='col';
+  const s=mk('div',c);s.className='strip';
+  for(let i=0;i<11;i++) mk('div',s,`height:${h}px;font-size:${fs}px;font-weight:800;color:#fff;line-height:1`,String(i%10));
+  filt(id);
+  const o={c,s,h,id};ODO.push(o);return o;
+}
+let O_T,O_U,O_W,O_M1,O_M2,DAYBARS=[],TODAYLBL;
+const DAYS=[['월',10],['화',12],['수',0],['목',26],['금',0],['토',0],['일',0]];
+(function(){
+  s3.style.background=ORANGE;
+  const g0=mk('div',s3,'position:absolute;left:24px;top:84px;font-size:17px;font-weight:600;color:rgba(255,255,255,.8)');g0.className='t';g0.textContent=`${TARGET.title} · 알토`;S3G.push(g0);
+  const g1=mk('div',s3,'position:absolute;left:24px;top:132px;font-size:26px;font-weight:700;color:#fff');g1.className='t';g1.textContent='음정 정확도';S3G.push(g1);
+  const g2=mk('div',s3,'position:absolute;left:0;top:170px;width:390px;height:190px');
+  O_T=odoCol(g2,14,0,112,DIGH,184,'mbT');
+  O_U=odoCol(g2,122,0,112,DIGH,184,'mbU');
+  const pc=mk('div',g2,'position:absolute;left:238px;top:62px;font-size:84px;font-weight:800;color:#fff');pc.className='t';pc.textContent='%';
+  S3G.push(g2);
+  const g3=mk('div',s3,'position:absolute;left:0;top:384px;width:390px;height:100px');
+  [['이번 주 연습',24],['누적 연습',207]].forEach(([l,x])=>{const e=mk('div',g3,`position:absolute;left:${x}px;top:0;font-size:17px;font-weight:600;color:rgba(255,255,255,.8)`);e.className='t';e.textContent=l});
+  O_W=odoCol(g3,24,30,30,52,48,'mbW');
+  const u1=mk('div',g3,'position:absolute;left:58px;top:48px;font-size:24px;font-weight:700;color:#fff');u1.className='t';u1.textContent='회';
+  O_M1=odoCol(g3,207,30,30,52,48,'mbM1');
+  O_M2=odoCol(g3,235,30,30,52,48,'mbM2');
+  const u2=mk('div',g3,'position:absolute;left:269px;top:48px;font-size:24px;font-weight:700;color:#fff');u2.className='t';u2.textContent='분';
+  S3G.push(g3);
+  const g4=mk('div',s3,'position:absolute;left:0;top:520px;width:390px;height:280px');
+  const step=(342-34)/6;
+  DAYS.forEach(([d,m],i)=>{
+    const x=24+i*step;
+    const b=mk('div',g4,`position:absolute;left:${x}px;width:34px;border-radius:10px;background:${i===3?'#fff':'rgba(255,255,255,.38)'}`);
+    DAYBARS.push([b,m?m*7.6:7]);
+    const l=mk('div',g4,`position:absolute;left:${x}px;top:236px;width:34px;text-align:center;font-size:16px;font-weight:${i===3?800:600};color:${i===3?'#fff':'rgba(255,255,255,.75)'}`);l.className='t';l.textContent=d;
+  });
+  TODAYLBL=mk('div',g4,`position:absolute;left:${24+3*step-13}px;top:0;width:60px;text-align:center;font-size:18px;font-weight:800;color:#fff;transform-origin:30px 100%`);
+  TODAYLBL.className='t';TODAYLBL.textContent='26분';
+  S3G.push(g4);
+  const hb=mk('div',s3,'background:#fff');hb.className='hbar';
+})();
+$('glyphB').innerHTML=note('#fff');
+$('glyphA').innerHTML=note('#fff');
+
+// ───────────────────────── 터치 동작 ─────────────────────────
+const CARD_AT6=TARGET.y-scrollOff(6);
+const ACT=[
+  {k:'tap',  ap:0.00,pr:0.90,rl:1.00,x:149,y:391,from:[176,930]},
+  {k:'drag', ap:2.12,pr:2.44,f:FLICK[0],x:252,y:648},
+  {k:'drag', ap:3.62,pr:3.94,f:FLICK[1],x:236,y:626},
+  {k:'tap',  ap:5.58,pr:5.92,rl:6.00,x:206,y:CARD_AT6+44},
+  {k:'tap',  ap:7.58,pr:7.92,rl:8.00,x:348.5,y:648+25.5},
+  {k:'tap',  ap:9.58,pr:9.92,rl:10.00,x:214,y:769},
+  {k:'swipe',ap:14.06,pr:14.42,f:{t0:14.5,T:0.34,D:300},x:195,y:826},
+];
+ACT.forEach(a=>{if(a.f)a.rl=a.f.t0+a.f.T});
+const R0=26;  // 원 반지름(pt)
+function touchState(t){
+  for(const a of ACT){
+    if(t<a.ap||t>a.rl+0.55) continue;
+    const from=a.from||[a.x+34,a.y+64];
+    const g=spring(t-a.ap,12);
+    let x=lerp(from[0],a.x,g), y=lerp(from[1],a.y,g);
+    if(a.f) y-=fingerD(a.f,t);
+    if(t<a.rl){
+      const s=spring(t-a.ap,14)*(1-0.22*spring(t-a.pr,26));
+      return {x,y,disc:s};
+    }
+    const e=easeOut3((t-a.rl)/0.5);
+    return {x,y,ring:e};
+  }
+  return null;
+}
+const TAPS=ACT.filter(a=>a.k==='tap');
+filt('mbS');filt('mbC');filt('mbSh');filt('mbTi');filt('mbSu');
+for(let i=0;i<24;i++)filt('mb1_'+i);for(let i=0;i<6;i++){filt('mb2_'+i);filt('mb3_'+i)}
+const vel=(f,t)=>(f(t+1/360)-f(t-1/360))*180;
+
+// 홈으로: 손가락을 따라 카드가 줄어들고, 놓으면 그 속도 그대로 아이콘 자리로 스프링
+const SWP=ACT[6];
+const FULL={x:0,y:0,w:SW,h:SH};
+function swipeRect(t){
+  const dy=fingerD(SWP.f,t), sc=1-0.78*dy/SH;
+  const w=SW*sc,h=SH*sc;
+  return {x:SW/2-w/2,y:SH-dy*0.82-h,w,h};
+}
+const TR=SWP.rl;
+const RREL=swipeRect(TR), RPRE=swipeRect(TR-1e-3);
+const VREL={};for(const k of ['x','y','w','h']) VREL[k]=(RREL[k]-RPRE[k])/1e-3;
+function closeRect(t){
+  if(t<SWP.f.t0) return FULL;
+  if(t<TR) return swipeRect(t);
+  const o={};for(const k of ['x','y','w','h']) o[k]=springV(RREL[k],VREL[k],ICON[k],t-TR,11,0.86);
+  return o;
+}
+const radFor=R=>clamp(IR+(55-IR)*(R.w-62)/(SW-62),IR,55);
+
+function place(el,R,r){
+  el.style.left=R.x+'px';el.style.top=R.y+'px';el.style.width=R.w+'px';el.style.height=R.h+'px';
+  if(r!=null) el.style.borderRadius=r+'px';
+}
+function show(el,v){el.style.visibility=v?'visible':'hidden'}
+function showD(el,v){el.style.display=v?'block':'none'}
+
+// ───────────────────────── seek ─────────────────────────
+function seek(t){
+  const dt=1/180;
+  // 카메라: 탭할 때 그 지점 쪽으로 살짝 줌 → 복귀
+  let zs=1,tx=0,ty=0;
+  for(const a of TAPS){
+    const b=0.045*(spring(t-a.pr,9)-spring(t-a.pr-0.3,9));
+    const P=[SCR.x+a.x*PX,SCR.y+a.y*PX];
+    zs+=b;tx-=b*P[0];ty-=b*P[1];
+  }
+  $('stage').style.transform=`translate(${tx}px,${ty}px) scale(${zs})`;
+
+  // 홈
+  const hz=1+0.12*(spring(t-1.0,W)-spring(t-SWP.f.t0,10));
+  homeIcons.style.transform=`scale(${hz})`;
+  show($('appIcon'),t<1.0);
+
+  // 앱 창(아이콘 → 스플래시 → 화면 1)
+  const win=$('win');
+  const winOn=t>=1.0&&t<SWP.f.t0;
+  showD(win,winOn);
+  if(winOn){
+    const R=lerpR(ICON,FULL,spring(t-1.0));
+    place(win,R,radFor(R));
+    const gs=34+(R.w-62)*0.24;
+    const gA=$('glyphA');
+    gA.style.width=gA.style.height=gs+'px';
+    gA.style.transform=`translate(${R.w/2-gs/2}px,${R.h/2-gs/2-(R.h-62)*0.04}px)`;
+    const syF=tt=>SH*(1-spring(tt-1.26,11)), sy=syF(t);
+    const sh=$('sheet');
+    blur(sh,'mbSh',0,vel(syF,t)*MB);
+    sh.style.transform=`translate(${-R.x}px,${-R.y+sy}px)`;
+    // 목록 스크롤 + 등장
+    const off=scrollOff(t), v=(scrollOff(t+dt)-scrollOff(t-dt))/(2*dt);
+    s1.style.transform=`translateY(${-off}px)`;
+    blur(s1,'mbS',0,v*MB);
+    S1ITEMS.forEach(([e],i)=>{
+      const dF=tt=>40*(1-spring(tt-1.36-0.045*Math.min(i,9),11));
+      e.style.transform=`translateY(${dF(t)}px)`;
+      blur(e,'mb1_'+Math.min(i,23),0,vel(dF,t)*MB);
+    });
+    $('s1bar').style.transform=`translateY(${-96*(1-clamp((off-70)/44))}px)`;
+    const hide=t>=6.0;
+    for(const e of [TARGET.num,TARGET.ring,TARGET.ct,TARGET.cs]) show(e,!hide);
+  }
+
+  // 카드 → 화면 2
+  const win2=$('win2');
+  const w2On=t>=6.0&&t<SWP.f.t0;
+  showD(win2,w2On);
+  if(w2On){
+    const m=spring(t-6.0);
+    const C={x:16,y:CARD_AT6,w:358,h:88};
+    const R=lerpR(C,FULL,m);
+    place(win2,R,lerp(20,55,m));
+    s2.style.transform='none';
+    S2G.forEach((g,i)=>{const f=tt=>(i===0?-70:150+25*i)*(1-spring(tt-6.08-0.04*i,11));g.style.transform=`translateY(${f(t)}px)`;blur(g,'mb2_'+i,0,vel(f,t)*MB)});
+    // 카드 제목·부제가 그대로 큰 제목으로
+    const ts=lerp(17/28,1,m);
+    S2TITLE.style.transform=`translate(${lerp(16+88,16,m)-R.x}px,${lerp(CARD_AT6+24-1.3,128,m)-R.y}px) scale(${ts})`;
+    S2SUB.style.transform=`translate(${lerp(16+88,16,m)-R.x}px,${lerp(CARD_AT6+50,98,m)-R.y}px) scale(${lerp(14/15,1,m)})`;
+    const tyF=tt=>lerp(CARD_AT6+22.7,128,spring(tt-6.0))-lerp(CARD_AT6,0,spring(tt-6.0));
+    blur(S2TITLE,'mbTi',0,vel(tyF,t)*MB);blur(S2SUB,'mbSu',0,vel(tyF,t)*MB);
+    const k=1-spring(t-6.0,18);
+    S2NUM.style.transform=`translate(16px,16px) scale(${Math.max(k,0)})`;
+    S2RING.style.transform=`translate(${R.w-46}px,29px) scale(${Math.max(k,0)})`;
+    // 토글
+    const p=spring(t-8.0,14);
+    SW2.style.background=mix('#E2E2E2',ORANGE,clamp(p));
+    KNOB.style.transform=`translateX(${20*p}px)`;
+    // 재생 막대
+    const ph=clamp((t-6.8)/3.2);
+    const hx=BX+ph*(NB*BSTEP);
+    PHT.style.transform=`translateX(${hx-1}px)`;
+    const sp=ph*2;
+    PH1.style.transform=`translateX(${18+clamp(sp)*322}px)`;
+    PH2.style.transform=`translateX(${18+clamp(sp-1)*322}px)`;
+    show(PH1,sp<1);show(PH2,sp>=1);
+    BARS.forEach((row,r)=>{
+      const mine=r===1, amp=mine?1+0.12*p:1-0.62*p;
+      row.forEach(([b,h,cy],j)=>{
+        const played=BX+j*BSTEP<hx;
+        const hh=Math.max(3.6,h*amp);
+        b.style.top=(cy-hh/2)+'px';b.style.height=hh+'px';
+        b.style.background=mine
+          ?(played?mix('#111111',ORANGE,clamp(p)):mix('#CFCFCF','#FFC9B8',clamp(p)))
+          :(played?mix('#111111','#C4C4C4',clamp(p)):mix('#D6D6D6','#E8E8E8',clamp(p)));
+      });
+    });
+    show(S2G[5].firstChild,t<10.0);
+  }
+
+  // 버튼 → 화면 3, 그리고 홈으로
+  const win3=$('win3');
+  const w3On=t>=10.0;
+  showD(win3,w3On);
+  if(w3On){
+    const B={x:16,y:740,w:358,h:58};
+    let R, k=1, c=1;
+    if(t<SWP.f.t0){
+      const m=spring(t-10.0);
+      R=lerpR(B,FULL,m);
+      place(win3,R,lerp(29,55,m));
+      s3.style.transform='none';
+    } else {
+      R=closeRect(t);
+      place(win3,R,radFor(R));
+      c=R.w/SW; k=Math.max(0,1-spring(t-TR,12));
+      const s=c*k;
+      s3.style.transform=`translate(${R.w/2-195*s}px,${R.h/2-422*s}px) scale(${s})`;
+    }
+    const lk=Math.max(0,1-spring(t-10.0,18));
+    $('btnLabel').style.transform=`translate(${R.w/2-45}px,${R.h/2-9-lk*0}px) scale(${lk})`;
+    $('btnLabel').style.transformOrigin='45px 9px';
+    show($('btnLabel'),t<11);
+    const g=t<TR?0:spring(t-TR-0.1,12);
+    const gs=34*(R.w/62)*Math.min(1,62/R.w)*g;
+    const gB=$('glyphB');
+    gB.style.width=gB.style.height=gs+'px';
+    gB.style.transform=`translate(${R.w/2-gs/2}px,${R.h/2-gs/2}px)`;
+    show(gB,g>0.001);
+    S3G.forEach((e,i)=>{const f=tt=>(160+25*i)*(1-spring(tt-10.08-0.045*i,11));e.style.transform=`translateY(${f(t)}px)`;blur(e,'mb3_'+i,0,vel(f,t)*MB)});
+    // 굴러가는 숫자
+    const V=(a,b,to,tt)=>to*easeOut3((tt-a)/(b-a));
+    const vAcc=tt=>V(10.45,12.05,94,tt), vW=tt=>V(10.75,11.95,6,tt), vM=tt=>V(10.85,12.15,48,tt);
+    const roll=(o,fn,div)=>{
+      const pos=tt=>{const v=fn(tt);
+        if(div===1) return v-10*Math.floor(v/10);
+        const hi=Math.floor(v/10), lo=v-10*hi; return hi+Math.max(0,lo-9);};
+      const p=pos(t), vv=(pos(t+dt)-pos(t-dt))/(2*dt);
+      o.s.style.transform=`translateY(${-p*o.h}px)`;
+      blur(o.s,o.id,0,vv*o.h*MB);
+    };
+    roll(O_T,vAcc,10);roll(O_U,vAcc,1);
+    roll(O_W,vW,1);
+    roll(O_M1,vM,10);roll(O_M2,vM,1);
+    DAYBARS.forEach(([b,h],i)=>{
+      const hh=Math.max(0,h*spring(t-12.0-0.25*i,13));
+      b.style.top=(226-hh)+'px';b.style.height=hh+'px';show(b,hh>0.3);
+    });
+    const ls=spring(t-13.5,14);
+    TODAYLBL.style.top=(226-DAYBARS[3][1]-30)+'px';
+    TODAYLBL.style.transform=`scale(${ls})`;
+  }
+
+  // 터치 표시
+  const T=touchState(t), te=$('touch'), re=$('ring');
+  if(T&&T.disc!=null){
+    const r=R0*T.disc;
+    te.style.cssText=`position:absolute;left:0;top:0;width:${2*r}px;height:${2*r}px;border-radius:50%;background:rgba(128,128,128,.5);transform:translate(${T.x-r}px,${T.y-r}px)`;
+    const a=T, nx=touchState(t+dt), pv=touchState(t-dt);
+    if(nx&&pv&&nx.disc!=null&&pv.disc!=null) blur(te,'mbC',(nx.x-pv.x)/(2*dt)*MB,(nx.y-pv.y)/(2*dt)*MB);
+    show(te,true);show(re,false);
+  } else if(T&&T.ring!=null){
+    const e=T.ring, r=R0*0.78+R0*1.15*e, bw=Math.max(1.5,R0*0.78*Math.pow(1-e,2.2));
+    re.style.width=re.style.height=2*r+'px';
+    re.style.borderWidth=bw+'px';
+    re.style.opacity=(1-e).toFixed(4);
+    re.style.transform=`translate(${T.x-r}px,${T.y-r}px)`;
+    show(te,false);show(re,e<0.999);
+  } else {show(te,false);show(re,false)}
+}
+window.seek=seek;
+window.DUR=16;
+window.INFO={CARD_AT6,CONTENT_H,maxScroll:CONTENT_H-SH,endScroll:scrollOff(6)};
+
+// ───────────────────────── 소리 (OfflineAudioContext) ─────────────────────────
+window.renderAudio=async function(){
+  const SR=48000, ctx=new OfflineAudioContext(2,SR*16,SR);
+  let seed=12345;const rnd=()=>(seed=(seed*1664525+1013904223)>>>0)/4294967296;
+  const nb=ctx.createBuffer(1,SR,SR);{const d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=rnd()*2-1}
+  const out=ctx.createDynamicsCompressor();out.threshold.value=-10;out.ratio.value=3;out.connect(ctx.destination);
+  const master=ctx.createGain();master.gain.value=0.8;master.connect(out);
+  function kick(t,g=1){
+    const o=ctx.createOscillator(),a=ctx.createGain();
+    o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(44,t+0.13);
+    a.gain.setValueAtTime(0.0001,t);a.gain.exponentialRampToValueAtTime(0.9*g,t+0.004);a.gain.exponentialRampToValueAtTime(0.0001,t+0.42);
+    o.connect(a);a.connect(master);o.start(t);o.stop(t+0.45);
+  }
+  function noise(t,dur,f0,f1,g,q=1.2){
+    const s=ctx.createBufferSource();s.buffer=nb;
+    const f=ctx.createBiquadFilter();f.type='bandpass';f.Q.value=q;
+    f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(f1,t+dur);
+    const a=ctx.createGain();a.gain.setValueAtTime(0.0001,t);a.gain.exponentialRampToValueAtTime(g,t+dur*0.35);a.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    s.connect(f);f.connect(a);a.connect(master);s.start(t);s.stop(t+dur+0.02);
+  }
+  function tone(t,freq,dur,g,type='sine'){
+    const o=ctx.createOscillator(),a=ctx.createGain();o.type=type;o.frequency.value=freq;
+    a.gain.setValueAtTime(0.0001,t);a.gain.exponentialRampToValueAtTime(g,t+0.005);a.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(a);a.connect(master);o.start(t);o.stop(t+dur+0.02);
+  }
+  for(let b=0;b<32;b++) kick(b*0.5,b%4===0?1:0.7);
+  // 탭(누름/뗌)
+  for(const a of ACT.filter(a=>a.k==='tap')){tone(a.pr,2400,0.03,0.08);tone(a.rl,1600,0.05,0.14)}
+  // 화면이 늘어날 때
+  for(const tt of [1.0,6.0,10.0]) noise(tt,0.45,300,2600,0.32,0.9);
+  // 스크롤·스와이프
+  for(const f of FLICK) noise(f.t0,0.5,1800,500,0.16,0.7);
+  noise(SWP.f.t0,0.7,2600,260,0.3,0.8);
+  // 토글
+  tone(8.0,880,0.12,0.16,'triangle');tone(8.06,1320,0.16,0.12,'triangle');
+  // 숫자: 십의 자리가 넘어갈 때마다 틱
+  for(let k=1;k<=9;k++){const x=k*10/94, e=1-Math.cbrt(1-x);tone(10.45+e*1.6,2000+k*90,0.03,0.09,'square')}
+  // 막대: 8분음표마다 오음계
+  [523.25,587.33,659.25,783.99,880,1046.5,1174.66].forEach((f,i)=>tone(12.0+0.25*i,f,0.28,0.12,'triangle'));
+  tone(13.5,1567.98,0.4,0.1,'sine');
+  const buf=await ctx.startRendering();
+  const L=buf.getChannelData(0),R=buf.getChannelData(1),n=L.length;
+  const pcm=new Int16Array(n*2);
+  for(let i=0;i<n;i++){pcm[2*i]=Math.max(-1,Math.min(1,L[i]))*32767;pcm[2*i+1]=Math.max(-1,Math.min(1,R[i]))*32767}
+  let s='';const u=new Uint8Array(pcm.buffer);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));
+  return btoa(s);
+};
+seek(0);
+</script>
+</body>
+</html>

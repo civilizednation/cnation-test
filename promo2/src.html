@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>무석연합교회 성가대연습앱</title>
+<style>
+@font-face{font-family:P;src:url(PretendardVariable.woff2) format('woff2-variations');font-weight:45 920;font-display:block}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#F3EEE5}
+body{font-family:P,sans-serif;-webkit-font-smoothing:antialiased;color:#111;font-feature-settings:"tnum"}
+#stage{position:absolute;left:0;top:0;width:1080px;height:1920px;transform-origin:0 0}
+#floor{position:absolute;left:250px;top:1752px;width:580px;height:40px;border-radius:50%;background:rgba(80,60,35,.13);filter:blur(18px)}
+#phone{position:absolute;left:146.75px;top:96px;width:786.5px;height:1671.8px;border-radius:120px;background:#0a0a0a}
+#screen{position:absolute;left:13px;top:13px;width:390px;height:844px;transform:scale(1.95);transform-origin:0 0;border-radius:55px;overflow:hidden;background:#F4F4F4}
+.ab{position:absolute;left:0;top:0}
+.t{white-space:nowrap;line-height:1}
+.win{position:absolute;overflow:hidden;background:#fff}
+.page{position:absolute;left:0;top:0;width:390px;height:844px;overflow:hidden;transform-origin:0 0}
+.hdr{position:absolute;left:16px;top:52px;width:358px;height:56px;border-radius:28px;background:#FF6A3D}
+.hdr .bk{position:absolute;left:8px;top:8px;width:40px;height:40px;border-radius:20px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center}
+.hdr .ttl{position:absolute;left:0;top:19px;width:358px;text-align:center;font-size:18px;font-weight:700;color:#fff}
+.card{position:absolute;left:16px;width:358px;border-radius:24px;background:#F5F5F5}
+.mc{position:absolute;left:16px;width:358px;height:62px;border-radius:20px;background:#fff}
+.mc .ic{position:absolute;left:12px;top:11px;width:40px;height:40px;border-radius:12px;background:#F1F1F1;display:flex;align-items:center;justify-content:center;color:#111}
+.mc .lb{position:absolute;left:66px;top:22px;font-size:17px;font-weight:700}
+.mc .cv{position:absolute;left:322px;top:19px;color:#B5B5B5}
+.pill{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:14px;background:#EAEAEA;font-size:13px;font-weight:700}
+.chip{position:absolute;top:58px;height:34px;border-radius:17px;border:1.5px solid #E2E2E2;background:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.inp{position:absolute;height:52px;border-radius:16px;background:#fff;border:1.5px solid #E2E2E2;display:flex;align-items:center;padding:0 16px;font-size:16px;font-weight:500}
+.hbar{position:absolute;left:128px;top:831px;width:134px;height:5px;border-radius:3px;background:#111}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs id="fdefs"></defs></svg>
+<div id="stage">
+  <div id="floor"></div>
+  <div id="phone"><div id="screen">
+    <div id="home" class="page" style="background:#F4F4F4"></div>
+    <div id="w1" class="win"></div>
+    <div id="w2" class="win"></div>
+    <div id="w3" class="win"></div>
+    <div id="w4" class="win"></div>
+    <div id="touch" class="ab" style="border-radius:50%;background:rgba(128,128,128,.5)"></div>
+    <div id="ring0" class="ab" style="border-radius:50%;border-style:solid;border-color:rgba(128,128,128,.5)"></div>
+    <div id="ring1" class="ab" style="border-radius:50%;border-style:solid;border-color:rgba(128,128,128,.5)"></div>
+    <div class="ab" style="left:132.5px;top:11px;width:125px;height:37px;border-radius:19px;background:#000"></div>
+  </div></div>
+</div>
+<script>
+// ───────── 수학 ─────────
+const OR='#FF6A3D', SW=390, SH=844, PX=1.95, DUR=20;
+const SCR={x:146.75+13,y:96+13};
+const Z=0.82, W=10.5;
+function spring(t,w=W,z=Z){if(t<=0)return 0;const wd=w*Math.sqrt(1-z*z);return 1-Math.exp(-z*w*t)*(Math.cos(wd*t)+(z*w/wd)*Math.sin(wd*t))}
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const lerp=(a,b,k)=>a+(b-a)*k;
+const easeOut3=x=>1-Math.pow(1-clamp(x),3);
+const lerpR=(A,B,k)=>({x:lerp(A.x,B.x,k),y:lerp(A.y,B.y,k),w:lerp(A.w,B.w,k),h:lerp(A.h,B.h,k)});
+function hex(c){return [1,3,5].map(i=>parseInt(c.slice(i,i+2),16))}
+function mix(a,b,k){const A=hex(a),B=hex(b);return `rgb(${A.map((v,i)=>Math.round(lerp(v,B[i],k))).join(',')})`}
+const $=id=>document.getElementById(id);
+function mk(parent,css,html,cls){const e=document.createElement('div');if(css)e.style.cssText=css;if(html!=null)e.innerHTML=html;if(cls)e.className=cls;parent.appendChild(e);return e}
+const FIL={};let fid=0;
+function filt(){const id='f'+(fid++);$('fdefs').insertAdjacentHTML('beforeend',`<filter id="${id}" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="0 0"/></filter>`);FIL[id]=$('fdefs').lastElementChild.firstElementChild;return id}
+function blur(el,sx,sy){
+  if(!el._f) el._f=filt();
+  sx=Math.min(Math.abs(sx),40);sy=Math.min(Math.abs(sy),40);
+  if(sx<0.2&&sy<0.2){el.style.filter='none';return}
+  FIL[el._f].setAttribute('stdDeviation',`${sx.toFixed(2)} ${sy.toFixed(2)}`);el.style.filter=`url(#${el._f})`;
+}
+const MB=0.28/60, DT=1/180;
+const vel=(f,t)=>(f(t+DT)-f(t-DT))/(2*DT);
+function place(el,R,r){el.style.left=R.x+'px';el.style.top=R.y+'px';el.style.width=R.w+'px';el.style.height=R.h+'px';if(r!=null)el.style.borderRadius=r+'px'}
+function showD(el,v){el.style.display=v?'block':'none'}
+
+// ───────── 아이콘 ─────────
+const sv=(d,s=22,sw=2)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const IC={
+  sun:sv('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+  wind:sv('<path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/>'),
+  tree:sv('<path d="M12 3l-5 7h3l-4 6h12l-4-6h3z"/><path d="M12 16v5"/>'),
+  hist:sv('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>'),
+  church:sv('<path d="M12 2v5M10 4h4M5 21V11l7-4 7 4v10M3 21h18"/><path d="M10 21v-5h4v5"/>'),
+  head:sv('<path d="M3 18v-6a9 9 0 0 1 18 0v6"/><rect x="3" y="15" width="4" height="6" rx="1.5"/><rect x="17" y="15" width="4" height="6" rx="1.5"/>'),
+  back:sv('<path d="M19 12H5M11 6l-6 6 6 6"/>',22,2.4),
+  chev:sv('<path d="M9 6l6 6-6 6"/>',22,2.4),
+  down:sv('<path d="M6 9l6 6 6-6"/>',22,2.4),
+  gear:sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',20,1.9),
+  cal:sv('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18M9 15l2 2 4-4"/>'),
+  repeat:sv('<path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',16,2.2),
+  img:sv('<rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/>'),
+  pdf:sv('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 14h6M9 17h4"/>'),
+  leaf:sv('<path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15"/><path d="M5 19l7-7"/>',18,2.2),
+  play:`<svg viewBox="0 0 24 24" width="22" height="22"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>`,
+  x:sv('<path d="M7 7l10 10M17 7L7 17"/>',12,3),
+  check:sv('<path d="M5 12l5 5 9-10"/>',18,2.6),
+  note:sv('<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',26,1.8),
+};
+
+// ───────── 이미지 ─────────
+const IMG={banner:'assets/banner.jpg',s1:'assets/sheet1.jpg',s2:'assets/sheet2.jpg'};
+
+// ───────── 화면 1 : 홈 ─────────
+const home=$('home');
+const MENU=[['sun','이번주 곡 연습'],['wind','다음주 곡 연습'],['tree','이번주 + 다음주 연습'],['hist','기존 곡 연습'],['church','고정송 연습 (입례/기도)'],['head','성가대곡 커버송 듣기']];
+const cardR=i=>({x:16,y:342+72*i,w:358,h:62});
+const GEAR={x:326,y:66,w:38,h:38};
+function menuCard(parent,i,x,y){
+  const c=mk(parent,`left:${x}px;top:${y}px`,null,'mc');
+  if(i===0) c.style.boxShadow='inset 0 0 0 1.5px #FFB49D';
+  const ic=mk(c,null,IC[MENU[i][0]],'ic'); if(i===0){ic.style.background=OR;ic.style.color='#fff'}
+  mk(c,null,MENU[i][1],'lb t'); const cv=mk(c,null,IC.chev,'cv'); if(i===0) cv.style.color=OR;
+  return c;
+}
+function gearBtn(parent,x,y){return mk(parent,`position:absolute;left:${x}px;top:${y}px;width:38px;height:38px;border-radius:19px;background:#fff;display:flex;align-items:center;justify-content:center;color:#111`,IC.gear)}
+const BANNER=mk(home,'position:absolute;left:16px;top:56px;width:358px;height:155px;border-radius:26px;overflow:hidden;background:#ddd');
+const BIMG=mk(BANNER,`position:absolute;left:0;top:0;width:358px;height:155px;background:url(${IMG.banner}) center/cover;filter:grayscale(1) contrast(1.04);transform-origin:179px 70px`);
+gearBtn(home,GEAR.x,GEAR.y);
+const PART=mk(home,'position:absolute;left:16px;top:224px;width:358px;height:106px;border-radius:24px;background:#fff');
+mk(PART,`position:absolute;left:18px;top:20px;display:flex;align-items:center;gap:7px;color:${OR}`,IC.leaf+'<span class="t" style="font-size:16px;font-weight:800;color:#111">연습할 파트 설정</span><span class="t" style="font-size:14px;font-weight:600;color:#8E8E8E">(복수 선택 가능)</span>');
+['전체','합창','S','A','T','B'].forEach((p,i)=>{const w=(358-36-5*6)/6;const c=mk(PART,`left:${18+i*(w+6)}px;width:${w}px`,p,'chip');if(i===0){c.style.background='#111';c.style.color='#fff';c.style.borderColor='#111'}});
+const HOMEC=MENU.map((_,i)=>menuCard(home,i,16,cardR(i).y));
+
+// ───────── 공통: 상단 바, 페이지 ─────────
+function header(page,title,dark){
+  mk(page,'position:absolute;left:0;top:0;width:390px;height:116px;background:#fff');
+  const h=mk(page,dark?'background:#151515':null,null,'hdr');
+  mk(h,null,IC.back,'bk').style.color='#fff';
+  mk(h,null,title,'ttl t');
+  return h;
+}
+const BACK={x:44,y:80};
+
+// ───────── 화면 2 : 이번주 곡 연습 ─────────
+const pg2=mk($('w1'),null,null,'page'); pg2.style.background='#fff';
+const sc2=mk(pg2,'position:absolute;left:0;top:0;width:390px');
+const G2=[];
+(function(){
+  const d=mk(sc2,'position:absolute;left:16px;top:124px;width:210px;height:58px;border-radius:20px;background:#F5F5F5');
+  mk(d,'position:absolute;left:10px;top:9px;width:40px;height:40px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center',IC.cal);
+  mk(d,'position:absolute;left:62px;top:18px;font-size:23px;font-weight:800',`2026-10-25`,'t');
+  G2.push(d);
+  const parts=['합창','소프라노','알토','테너','베이스'];
+  let y=196;
+  parts.forEach((p,i)=>{
+    const c=mk(sc2,`top:${y}px;height:352px;overflow:hidden`,null,'card');
+    mk(c,'position:absolute;left:16px;top:16px',`<span class="pill" style="${i===0?`background:${OR};color:#fff`:''}">${p}</span>`);
+    mk(c,'position:absolute;left:18px;top:54px;font-size:18px;font-weight:800','예수 이름으로','t');
+    mk(c,'position:absolute;left:228px;top:28px;font-size:13px;font-weight:700;color:#8E8E8E','반복재생','t');
+    const tg=mk(c,'position:absolute;left:292px;top:20px;width:50px;height:30px;border-radius:15px;background:#E2E2E2');
+    mk(tg,'position:absolute;left:2px;top:2px;width:26px;height:26px;border-radius:13px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)');
+    const v=mk(c,'position:absolute;left:0;top:84px;width:358px;height:180px;background:#171717;overflow:hidden');
+    mk(v,'position:absolute;left:20px;top:22px;font-size:13px;font-weight:600;color:#8A8A8A','유빌라테 44집 · 18','t');
+    mk(v,'position:absolute;left:20px;top:44px;font-size:26px;font-weight:800;color:#fff','예수 이름으로','t');
+    mk(v,'position:absolute;left:20px;top:78px;font-size:14px;font-weight:600;color:#BDBDBD',`Arr. 최정연 · ${p}`,'t');
+    mk(v,'position:absolute;left:286px;top:108px;width:52px;height:52px;border-radius:26px;background:#fff;color:#111;display:flex;align-items:center;justify-content:center;padding-left:3px',IC.play);
+    mk(v,'position:absolute;left:0;top:176px;width:358px;height:4px;background:#333');
+    mk(v,`position:absolute;left:0;top:176px;width:${60+i*30}px;height:4px;background:${OR}`);
+    mk(c,`position:absolute;left:18px;top:280px;display:flex;gap:6px;align-items:center;font-size:14px;font-weight:700;color:#111`,IC.repeat+'<span class="t">구간 반복 연습</span>');
+    mk(c,'left:16px;top:302px;width:96px;height:40px;color:#9A9A9A;font-size:14px','시작(초)','inp');
+    mk(c,'position:absolute;left:118px;top:314px;font-size:16px;color:#9A9A9A','~','t');
+    mk(c,'left:134px;top:302px;width:96px;height:40px;color:#9A9A9A;font-size:14px','종료(초)','inp');
+    mk(c,`position:absolute;left:236px;top:302px;width:106px;height:40px;border-radius:14px;background:#111;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center`,'구간반복 시작');
+    G2.push(c);
+    y+=366;
+  });
+  window.SHEETY=y;
+  const s=mk(sc2,`top:${y}px;height:575px;overflow:hidden`,null,'card');
+  SHEETHEAD(s);
+  mk(s,`position:absolute;left:10px;top:66px;width:338px;height:470px;border-radius:14px;background:url(${IMG.s1}) top/100% auto;`);
+  G2.push(s);
+  sc2.style.height=(y+575+30)+'px';
+  window.SC2H=y+575+30;
+})();
+function SHEETHEAD(p){
+  const h=mk(p,'position:absolute;left:0;top:0;width:358px;height:64px');
+  mk(h,'position:absolute;left:12px;top:12px;width:40px;height:40px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center',IC.img);
+  mk(h,'position:absolute;left:62px;top:24px;font-size:15px;font-weight:800','[10-25] 예수 이름으로 악보','t');
+  mk(h,`position:absolute;left:286px;top:18px;height:28px;width:56px;border-radius:14px;border:1.5px solid ${OR};color:${OR};font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center`,'10장');
+  return h;
+}
+const H2=header(pg2,'이번주 곡 연습');
+mk(pg2,null,null,'hbar');
+
+// 스크롤: 끄는 동안은 손가락 그대로, 놓으면 그 속도로 지수 감속
+const TAU=0.4;
+const F2=[{t0:2.5,T:0.3,D:185},{t0:3.5,T:0.3,D:185},{t0:4.5,T:0.3,D:185}];
+const F5=[{t0:16.0,T:0.28,D:80},{t0:17.0,T:0.28,D:45}];
+function fingerD(f,t){const s=clamp((t-f.t0)/f.T);return f.D*(1-Math.cos(Math.PI*s/2))}
+function flick(f,t){if(t<=f.t0)return 0;if(t<f.t0+f.T)return fingerD(f,t);const v=f.D*Math.PI/2/f.T;return f.D+v*TAU*(1-Math.exp(-(t-f.t0-f.T)/TAU))}
+function scrollSeq(F,t){let s=0;F.forEach((f,i)=>{const nx=F[i+1];s+=flick(f,nx?Math.min(t,nx.t0):t)});return s}
+const off2=t=>scrollSeq(F2,t), off5=t=>scrollSeq(F5,t);
+
+// ───────── 화면 3 : 악보 ─────────
+const pg3=mk($('w2'),null,null,'page'); pg3.style.background='#fff';
+const SHEETBOX=mk(pg3,'position:absolute;left:0;top:168px;width:390px;height:676px;overflow:hidden');
+const SHEETS=mk(SHEETBOX,'position:absolute;left:0;top:0;width:390px;transform-origin:0 0');
+mk(SHEETS,`position:absolute;left:0;top:0;width:390px;height:541px;background:url(${IMG.s1}) top/100% auto`);
+mk(SHEETS,`position:absolute;left:0;top:551px;width:390px;height:219px;background:url(${IMG.s2}) top/100% auto`);
+const G3=[];
+const sh3=mk(pg3,'position:absolute;left:16px;top:116px;width:358px;height:44px');
+mk(sh3,'position:absolute;left:4px;top:12px;font-size:16px;font-weight:800','2026-10-25 · 예수 이름으로','t');
+mk(sh3,`position:absolute;left:300px;top:6px;height:30px;width:58px;border-radius:15px;border:1.5px solid ${OR};color:${OR};font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center`,'10장');
+G3.push(sh3,SHEETBOX);
+header(pg3,'악보 보기');
+// 두 번 탭 → 가사 줄로 확대, 옆으로 끌기
+const ZP={x:150,y:420};             // 확대 중심(화면 좌표)
+function zoomS(t){return 1+0.75*spring(t-7.5,10)}
+const PAN={t0:8.5,T:0.3,D:110};
+function panX(t){const v=flick(PAN,t);return -Math.min(v,175)}
+
+// ───────── 화면 4 : 기존 곡 연습 ─────────
+const pg4=mk($('w3'),null,null,'page'); pg4.style.background='#fff';
+const G4=[];
+const FR={x:28,y:136,w:334,h:52};
+const fc=mk(pg4,'top:124px;height:76px',null,'card');G4.push(fc);
+const FIELD=mk(pg4,`left:${FR.x}px;top:${FR.y}px;width:${FR.w}px`,null,'inp');
+const FPH=mk(FIELD,'position:absolute;left:18px;top:18px;color:#8E8E8E;font-size:16px;font-weight:600','날짜(일요일)를 선택하세요','t');
+const FVAL=mk(FIELD,'position:absolute;left:18px;top:18px;color:#111;font-size:16px;font-weight:700','2026-10-18 · 주님과 함께 함이','t');
+mk(FIELD,'position:absolute;left:296px;top:14px;color:#111',IC.down);
+G4.push(FIELD);
+const SONG=mk(pg4,'top:216px;height:300px;overflow:hidden',null,'card');G4.push(SONG);
+const PH4=mk(SONG,'position:absolute;left:0;top:0;width:358px;height:300px;color:#BDBDBD');
+mk(PH4,'position:absolute;left:166px;top:100px',IC.note);
+mk(PH4,'position:absolute;left:0;top:144px;width:358px;text-align:center;font-size:16px;font-weight:600;color:#8E8E8E','날짜를 고르면 그 주의 곡이 나와요','t');
+const NEW4=mk(SONG,'position:absolute;left:0;top:0;width:358px;height:300px');
+mk(NEW4,'position:absolute;left:20px;top:24px;font-size:14px;font-weight:700;color:#8E8E8E','2026-10-18 주일','t');
+mk(NEW4,'position:absolute;left:20px;top:48px;font-size:26px;font-weight:800','주님과 함께 함이','t');
+['합창','소프라노','알토','테너','베이스'].forEach((p,i)=>{
+  const r=mk(NEW4,`position:absolute;left:16px;top:${96+i*40}px;width:326px;height:34px;border-radius:12px;background:#fff`);
+  mk(r,`position:absolute;left:12px;top:10px;font-size:15px;font-weight:700`,p,'t');
+  mk(r,`position:absolute;left:292px;top:6px;width:22px;height:22px;color:${i===0?OR:'#111'}`,IC.play);
+});
+mk(pg4,'position:absolute;left:16px;top:760px;width:150px;height:52px;border-radius:26px;background:#F2F2F2;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center','↑ 맨 위로');
+mk(pg4,'position:absolute;left:174px;top:760px;width:200px;height:52px;border-radius:26px;background:#111;color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center','이번주 곡으로 가기');
+mk(pg4,null,null,'hbar');
+header(pg4,'기존 곡 연습');
+// 펼쳐지는 날짜 목록
+const ITEMS=['날짜(일요일)를 선택하세요','2026-11-01 · 감사의 기도','2026-10-25 · 예수 이름으로','2026-10-18 · 주님과 함께 함이','2026-10-11 · 하나님의 전신갑주','2026-10-04 · 주의 손이','2026-09-27 · 지금 여기 나와 함께','2026-09-20 · 나의 주 나의 하나님'];
+const SEL=3, IH=50;
+const PANEL=mk(pg4,'position:absolute;overflow:hidden;background:#fff;border-radius:16px;box-shadow:inset 0 0 0 1.5px #E2E2E2,0 10px 30px rgba(0,0,0,.08)');
+const PITEMS=ITEMS.map((s,i)=>{
+  const r=mk(PANEL,`position:absolute;left:0;top:${6+i*IH}px;width:334px;height:${IH}px`);
+  const tx=mk(r,`position:absolute;left:18px;top:17px;font-size:16px;font-weight:${i===0?600:700};color:${i===0?'#8E8E8E':'#111'}`,s,'t');
+  if(i===0) mk(r,`position:absolute;left:296px;top:15px;color:${OR}`,IC.check);
+  return {r,tx};
+});
+const DD_OPEN=12.0, DD_CLOSE=13.0;
+const PR={x:FR.x,y:FR.y,w:FR.w,h:12+ITEMS.length*IH};
+
+// ───────── 화면 5 : 주일 찬양 설정 ─────────
+const pg5=mk($('w4'),null,null,'page'); pg5.style.background='#fff';
+const sc5=mk(pg5,'position:absolute;left:0;top:0;width:390px');
+const G5=[];
+(function(){
+  const lbl=(p,x,y,s)=>mk(p,`position:absolute;left:${x}px;top:${y}px;font-size:14px;font-weight:700;color:#8E8E8E`,s,'t');
+  const a=mk(sc5,'top:124px;height:282px',null,'card');
+  mk(a,`position:absolute;left:18px;top:18px;width:42px;height:42px;border-radius:13px;background:${OR};color:#fff;display:flex;align-items:center;justify-content:center`,IC.cal);
+  mk(a,'position:absolute;left:72px;top:29px;font-size:21px;font-weight:800','주일 찬양 설정','t');
+  lbl(a,20,84,'적용 날짜 (일요일)');
+  mk(a,'left:16px;top:106px;width:212px;justify-content:center;font-size:17px;font-weight:600','2026. 10. 25.','inp');
+  mk(a,'position:absolute;left:236px;top:106px;width:106px;height:52px;border-radius:16px;border:1.5px solid #111;background:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center','날짜수정');
+  lbl(a,20,180,'찬양 제목');
+  mk(a,'left:16px;top:202px;width:326px;font-size:17px;font-weight:700','예수 이름으로','inp');
+  G5.push(a);
+  const b=mk(sc5,'top:420px;height:156px',null,'card');
+  mk(b,'position:absolute;left:18px;top:18px;width:42px;height:42px;border-radius:13px;background:#fff;display:flex;align-items:center;justify-content:center',IC.pdf);
+  mk(b,'position:absolute;left:72px;top:30px;font-size:18px;font-weight:800','악보 첨부 (PDF)','t');
+  mk(b,'position:absolute;left:16px;top:82px;width:104px;height:44px;border-radius:22px;background:#111;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center','파일 선택');
+  mk(b,'position:absolute;left:132px;top:97px;font-size:15px;font-weight:600;color:#8E8E8E','선택한 파일 없음','t');
+  G5.push(b);
+  const c=mk(sc5,'top:590px;height:620px',null,'card');
+  mk(c,'position:absolute;left:18px;top:18px;width:42px;height:42px;border-radius:13px;background:#fff;display:flex;align-items:center;justify-content:center',IC.img);
+  mk(c,'position:absolute;left:72px;top:30px;font-size:18px;font-weight:800','악보 첨부 (이미지)','t');
+  mk(c,'position:absolute;left:226px;top:24px;height:30px;padding:0 12px;border-radius:15px;background:#fff;font-size:13px;font-weight:700;display:flex;align-items:center','JPG · PNG 20장');
+  mk(c,`position:absolute;left:20px;top:78px;font-size:15px;font-weight:700;color:${OR}`,'악보 순서대로 한 장씩 추가해 주세요','t');
+  for(let i=0;i<9;i++){
+    const x=16+(i%3)*112, y=112+Math.floor(i/3)*164;
+    const th=mk(c,`position:absolute;left:${x}px;top:${y}px;width:102px;height:110px;border-radius:16px;background:#fff url(${IMG.s1}) ${[0,50,100][i%3]}% ${[8,40,72][Math.floor(i/3)]}%/300% auto;box-shadow:inset 0 0 0 1px #E6E6E6`);
+    mk(th,'position:absolute;left:78px;top:-6px;width:26px;height:26px;border-radius:13px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center',IC.x);
+    mk(c,`position:absolute;left:${x+21}px;top:${y+120}px;width:60px;height:28px;border-radius:14px;background:#EAEAEA;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center`,`${i+1}번`);
+  }
+  G5.push(c);
+  sc5.style.height='1260px';
+  window.SC5H=1260;
+})();
+header(pg5,'설정 (링크 및 악보)',true);
+mk(pg5,null,null,'hbar');
+
+// ───────── 창(카드가 늘어나 화면이 됨 / 다시 접힘) ─────────
+function copyCard(win,i){const c=menuCard(win,i,0,0);c.style.transformOrigin='179px 31px';return c}
+function copyGear(win){const g=gearBtn(win,0,0);g.style.transformOrigin='19px 19px';return g}
+function copySheet(win){const c=mk(win,'position:absolute;left:0;top:0;width:358px;height:64px;transform-origin:0 0');SHEETHEAD(c);return c}
+const SHEET_AT6=SHEETY-off2(6.0);
+const WINS=[
+  {el:$('w1'),page:pg2,G:G2,hdr:H2,open:{t:1.0,R:cardR(0),r:20,copy:copyCard($('w1'),0)},hide:10.0},
+  {el:$('w2'),page:pg3,G:G3,gBase:520,open:{t:6.0,R:{x:16,y:SHEET_AT6,w:358,h:575},r:24,copy:copySheet($('w2')),bg0:'#F5F5F5'},
+     close:{t:10.0,R:cardR(0),r:20,copy:copyCard($('w2'),0)}},
+  {el:$('w3'),page:pg4,G:G4,open:{t:11.0,R:cardR(3),r:20,copy:copyCard($('w3'),3)},close:{t:14.0,R:cardR(3),r:20,copy:copyCard($('w3'),3)}},
+  {el:$('w4'),page:pg5,G:G5,open:{t:15.0,R:GEAR,r:19,copy:copyGear($('w4'))},close:{t:18.0,R:GEAR,r:19,copy:copyGear($('w4'))}},
+];
+const FULL={x:0,y:0,w:SW,h:SH};
+function winFrame(wd,t){
+  const end=wd.hide!=null?wd.hide:wd.close.t+0.95;
+  const on=t>=wd.open.t&&t<end;
+  showD(wd.el,on); if(!on) return;
+  const m=spring(t-wd.open.t);
+  let R=lerpR(wd.open.R,FULL,m), r=lerp(wd.open.r,55,m);
+  const pg=wd.page;
+  let k=1;
+  if(wd.close&&t>=wd.close.t){
+    const q=spring(t-wd.close.t,11,0.86);
+    R=lerpR(FULL,wd.close.R,q); r=lerp(55,wd.close.r,q);
+    k=Math.max(0,1-spring(t-wd.close.t,14));
+    const s=R.w/SW*k;
+    pg.style.transform=`translate(${R.w/2-195*s}px,${R.h/2-422*s}px) scale(${s})`;
+    const g=spring(t-wd.close.t-0.1,13);
+    wd.close.copy.style.transform=`scale(${g})`; showD(wd.close.copy,g>0.002);
+  } else {
+    pg.style.transform='none';
+    if(wd.close) showD(wd.close.copy,false);
+  }
+  place(wd.el,R,r);
+  wd.el.style.background=wd.open.bg0?mix(wd.open.bg0,'#FFFFFF',clamp(m)):'#fff';
+  const oc=Math.max(0,1-spring(t-wd.open.t,18));
+  wd.open.copy.style.transform=`scale(${oc})`; showD(wd.open.copy,oc>0.002&&!(wd.close&&t>=wd.close.t));
+  // 내용은 창 위쪽에 붙어서 차례로 올라옴(헤더는 위에서)
+  const hdrs=[...pg.querySelectorAll(':scope > .hdr')];
+  hdrs.forEach(h=>{const f=tt=>-130*(1-spring(tt-wd.open.t-0.04,11));h.style.transform=`translateY(${f(t)}px)`;blur(h,0,vel(f,t)*MB)});
+  wd.G.forEach((g,i)=>{const f=tt=>((wd.gBase||140)+22*Math.min(i,6))*(1-spring(tt-wd.open.t-0.08-0.045*Math.min(i,6),11));g.style.transform=`translateY(${f(t)}px)`;blur(g,0,vel(f,t)*MB)});
+}
+
+// ───────── 터치 ─────────
+const SHEET_TAP={x:200,y:SHEET_AT6+32};
+const ITEM_Y=FR.y+6+SEL*IH+IH/2;
+const ACT=[
+  {ap:0.0,taps:[[0.92,1.0]],x:200,y:cardR(0).y+31,from:[230,930]},
+  {ap:2.18,f:F2[0],x:250,y:640},
+  {ap:3.2,f:F2[1],x:236,y:650},
+  {ap:4.2,f:F2[2],x:244,y:640},
+  {ap:5.6,taps:[[5.92,6.0]],...SHEET_TAP},
+  {ap:7.04,taps:[[7.3,7.36],[7.44,7.5]],...ZP},
+  {ap:8.18,f:PAN,x:250,y:470,hx:true},
+  {ap:9.6,taps:[[9.92,10.0]],...BACK},
+  {ap:10.6,taps:[[10.92,11.0]],x:190,y:cardR(3).y+31},
+  {ap:11.6,taps:[[11.92,12.0]],x:180,y:FR.y+26},
+  {ap:12.6,taps:[[12.92,13.0]],x:170,y:ITEM_Y},
+  {ap:13.6,taps:[[13.92,14.0]],...BACK},
+  {ap:14.6,taps:[[14.92,15.0]],x:GEAR.x+19,y:GEAR.y+19},
+  {ap:15.66,f:F5[0],x:240,y:660},
+  {ap:16.66,f:F5[1],x:228,y:640},
+  {ap:17.6,taps:[[17.92,18.0]],...BACK},
+];
+ACT.forEach(a=>{a.rl=a.taps?a.taps[a.taps.length-1][1]:a.f.t0+a.f.T});
+const TAPS=[];ACT.forEach(a=>a.taps&&TAPS.push({pr:a.taps[0][0],x:a.x,y:a.y}));
+const R0=24;
+function touchAt(t){
+  for(const a of ACT){
+    if(t<a.ap||t>a.rl+0.55) continue;
+    const from=a.from||[a.x+34,a.y+64];
+    const g=spring(t-a.ap,12);
+    let x=lerp(from[0],a.x,g), y=lerp(from[1],a.y,g);
+    if(a.f){ if(a.hx) x-=fingerD(a.f,t); else y-=fingerD(a.f,t); }
+    const rings=[];
+    let press=0;
+    if(a.taps) a.taps.forEach(([p,r],i)=>{press+=spring(t-p,26)-(i<a.taps.length-1?spring(t-r,26):0);if(i<a.taps.length-1&&t>=r)rings.push(easeOut3((t-r)/0.45))});
+    else press=spring(t-(a.f.t0-0.06),26);
+    if(t<a.rl) return {x,y,disc:spring(t-a.ap,14)*(1-0.22*press),rings};
+    rings.push(easeOut3((t-a.rl)/0.5));
+    return {x,y,rings};
+  }
+  return null;
+}
+
+// ───────── seek ─────────
+function seek(t){
+  t=((t%DUR)+DUR)%DUR;
+  // 카메라
+  let zs=1,tx=0,ty=0;
+  for(const a of TAPS){const b=0.045*(spring(t-a.pr,9)-spring(t-a.pr-0.3,9));zs+=b;tx-=b*(SCR.x+a.x*PX);ty-=b*(SCR.y+a.y*PX)}
+  $('stage').style.transform=`translate(${tx}px,${ty}px) scale(${zs})`;
+  // 홈: 배너가 20초 주기로 천천히 흐름 (처음과 끝이 같음)
+  const w=2*Math.PI*t/DUR;
+  BIMG.style.transform=`scale(${1.1+0.03*Math.sin(w)}) translate(${9*Math.sin(w+0.5)}px,${4*Math.cos(w)}px)`;
+  // 화면 2 스크롤
+  const o2=off2(t);
+  sc2.style.transform=`translateY(${-o2}px)`; blur(sc2,0,vel(off2,t)*MB);
+  // 화면 3 확대·끌기
+  const z=zoomS(t), px=panX(t);
+  const zx=ZP.x, zy=ZP.y-168;
+  SHEETS.style.transform=`translate(${px+zx*(1-z)}px,${zy*(1-z)}px) scale(${z})`;
+  blur(SHEETS,vel(panX,t)*MB/z,0);
+  // 화면 4 목록
+  const m1=spring(t-DD_OPEN), m2=spring(t-DD_CLOSE);
+  const pOn=t>=DD_OPEN&&t<DD_CLOSE+0.9;
+  showD(PANEL,pOn);
+  if(pOn){
+    const k=clamp(m1-m2,-0.05,1.05);
+    place(PANEL,lerpR(FR,PR,k));
+    PITEMS.forEach((it,i)=>{
+      const sel=i===SEL;
+      it.r.style.background=sel&&t>=12.92&&t<13.0+0.01?'#F1F1F1':'transparent';
+      const dy=-(SEL*IH)*m2;
+      it.r.style.transform=`translateY(${dy+10*(1-spring(t-DD_OPEN-0.03*i,12))}px)`;
+      it.tx.style.color=i===0?'#8E8E8E':'#111';
+      
+    });
+  }
+  const chosen=t>=DD_CLOSE;
+  showD(FPH,!chosen);showD(FVAL,chosen);
+  PH4.style.transform=`translateY(${320*spring(t-13.08,11)}px)`;
+  NEW4.style.transform=`translateY(${320*(1-spring(t-13.16,11))}px)`;
+  blur(NEW4,0,vel(tt=>320*(1-spring(tt-13.16,11)),t)*MB);
+  // 화면 5 스크롤
+  const o5=off5(t);
+  sc5.style.transform=`translateY(${-o5}px)`; blur(sc5,0,vel(off5,t)*MB);
+  // 창
+  WINS.forEach(wd=>winFrame(wd,t));
+  // 터치 원
+  const T=touchAt(t), te=$('touch');
+  if(T&&T.disc!=null){
+    const r=R0*T.disc;
+    te.style.width=te.style.height=2*r+'px';te.style.transform=`translate(${T.x-r}px,${T.y-r}px)`;showD(te,true);
+    const a=touchAt(t+DT),b=touchAt(t-DT);
+    if(a&&b) blur(te,(a.x-b.x)/(2*DT)*MB,(a.y-b.y)/(2*DT)*MB);
+  } else showD(te,false);
+  [0,1].forEach(i=>{
+    const re=$('ring'+i), e=T&&T.rings[i];
+    if(e==null||e>=0.999){showD(re,false);return}
+    const r=R0*0.78+R0*1.15*e, bw=Math.max(1.5,R0*0.78*Math.pow(1-e,2.2));
+    re.style.width=re.style.height=2*r+'px';re.style.borderWidth=bw+'px';re.style.opacity=(1-e).toFixed(4);
+    re.style.transform=`translate(${T.x-r}px,${T.y-r}px)`;showD(re,true);
+  });
+}
+window.seek=seek;window.DUR=DUR;
+window.INFO={SHEET_AT6,SC2H,max2:SC2H-SH,end2:off2(6),max5:SC5H-SH,end5:off5(20),ITEM_Y};
+
+// ───────── 소리 ─────────
+window.renderAudio=async function(){
+  const SR=48000,ctx=new OfflineAudioContext(2,SR*DUR,SR);
+  let seed=12345;const rnd=()=>(seed=(seed*1664525+1013904223)>>>0)/4294967296;
+  const nb=ctx.createBuffer(1,SR,SR);{const d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=rnd()*2-1}
+  const comp=ctx.createDynamicsCompressor();comp.threshold.value=-10;comp.ratio.value=3;comp.connect(ctx.destination);
+  const M=ctx.createGain();M.gain.value=0.8;M.connect(comp);
+  function kick(t,g){const o=ctx.createOscillator(),a=ctx.createGain();o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(44,t+0.13);a.gain.setValueAtTime(0.0001,t);a.gain.exponentialRampToValueAtTime(0.9*g,t+0.004);a.gain.exponentialRampToValueAtTime(0.0001,t+0.42);o.connect(a);a.connect(M);o.start(t);o.stop(t+0.45)}
+  function noise(t,dur,f0,f1,g,q=1){const s=ctx.createBufferSource();s.buffer=nb;const f=ctx.createBiquadFilter();f.type='bandpass';f.Q.value=q;f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(f1,t+dur);const a=ctx.createGain();a.gain.setValueAtTime(0.0001,t);a.gain.exponentialRampToValueAtTime(g,t+dur*0.35);a.gain.exponentialRampToValueAtTime(0.0001,t+dur);s.connect(f);f.connect(a);a.connect(M);s.start(t);s.stop(t+dur+0.02)}
+  function tone(t,fr,dur,g,type='sine'){const o=ctx.createOscillator(),a=ctx.createGain();o.type=type;o.frequency.value=fr;a.gain.setValueAtTime(0.0001,t);a.gain.exponentialRampToValueAtTime(g,t+0.005);a.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(a);a.connect(M);o.start(t);o.stop(t+dur+0.02)}
+  for(let b=0;b<DUR*2;b++) kick(b*0.5,b%4===0?1:0.7);
+  for(const a of ACT) if(a.taps) a.taps.forEach(([p,r])=>{tone(p,2400,0.03,0.07);tone(r,1600,0.05,0.13)});
+  for(const tt of [1.0,6.0,11.0,12.0,15.0]) noise(tt,0.45,300,2600,0.3,0.9);
+  for(const tt of [10.0,13.0,14.0,18.0]) noise(tt,0.45,2600,300,0.28,0.9);
+  for(const f of [...F2,PAN,...F5]) noise(f.t0,0.5,1800,500,0.15,0.7);
+  tone(7.5,880,0.14,0.12,'triangle');tone(7.56,1320,0.18,0.1,'triangle');
+  const buf=await ctx.startRendering();
+  const L=buf.getChannelData(0),R=buf.getChannelData(1),n=L.length,pcm=new Int16Array(n*2);
+  for(let i=0;i<n;i++){pcm[2*i]=clamp(L[i],-1,1)*32767;pcm[2*i+1]=clamp(R[i],-1,1)*32767}
+  let s='';const u=new Uint8Array(pcm.buffer);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));
+  return btoa(s);
+};
+seek(0);
+</script>
+</body>
+</html>

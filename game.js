@@ -1,5 +1,54 @@
 // cnation-bungeoppang 게임 메인 로직
 
+// 에셋(Assets/Sprites)이 아직 없거나 못 불러올 때 쓰는 대체 그림
+const FALLBACK_EMOJI = [
+  ['bear', '🐻'], ['elephant', '🐘'], ['eagle', '🦅'], ['fox', '🦊'], ['lion', '🦁'],
+  ['gorila', '🦍'], ['tiger', '🐯'], ['wolf', '🐺'], ['pottle', '🫖'], ['redBean2', '🫘'],
+  ['stick', '🥢'], ['box', '📦'], ['timer', '⏱️'], ['goodBread no mold', '🐟']
+];
+const FALLBACK_BREAD = {
+  'mold1': null, 'rawBread': '#F3E3B5', 'redBeanBread': '#F3E3B5', 'freshBread': '#E9C46A',
+  'sosoBread': '#D9A441', 'goodBread3': '#B9772F', 'fireBread': '#3A2A1F'
+};
+function svgUri(body, stretch) {
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"${stretch ? ' preserveAspectRatio="none"' : ''}>${body}</svg>`);
+}
+function fallbackImage(src) {
+  const name = decodeURIComponent(src || '');
+  for (const key in FALLBACK_BREAD) {
+    if (!name.includes(key)) continue;
+    const color = FALLBACK_BREAD[key];
+    let body = '<rect x="6" y="14" width="88" height="72" rx="20" fill="#4a4a4a"/><rect x="12" y="20" width="76" height="60" rx="16" fill="#333"/>';
+    if (color) {
+      body += `<ellipse cx="46" cy="50" rx="30" ry="18" fill="${color}"/><path d="M72 50 L88 38 L88 62 Z" fill="${color}"/>`;
+      if (key === 'redBeanBread') body += '<circle cx="46" cy="50" r="9" fill="#7a1f1f"/>';
+    }
+    return svgUri(body);
+  }
+  if (name.includes('textbox')) return svgUri('<rect x="2" y="2" width="96" height="96" rx="18" fill="#fff" stroke="#8d6e63" stroke-width="3" vector-effect="non-scaling-stroke"/>', true);
+  if (name.includes('curtain')) return svgUri('<g>' + [0,1,2,3,4].map(i => `<rect x="${i*20}" y="0" width="10" height="100" fill="#d32f2f"/><rect x="${i*20+10}" y="0" width="10" height="100" fill="#fafafa"/>`).join('') + '</g>', true);
+  const hit = FALLBACK_EMOJI.find(([k]) => name.includes(k));
+  return svgUri(`<text x="50" y="58" font-size="64" text-anchor="middle" dominant-baseline="middle">${hit ? hit[1] : '🐟'}</text>`);
+}
+// 이미지 하나가 실패하면 대체 그림으로 바꾼다(같은 그림을 다시 요청해도 반복해서 실패하지 않도록 원래 경로를 기억)
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement) || img.dataset.fallback === '1') return;
+  img.dataset.fallback = '1';
+  img.src = fallbackImage(img.dataset.src || img.getAttribute('src'));
+}, true);
+// 이 스크립트보다 먼저 실패한 HTML 속 이미지(차양·시계·말풍선 등)도 바꿔 준다
+document.querySelectorAll('img').forEach((img) => {
+  if (img.complete && img.naturalWidth === 0) img.dispatchEvent(new Event('error'));
+});
+function setImg(img, src) {
+  if (img.dataset.src === src) return;
+  img.dataset.src = src;
+  img.dataset.fallback = '';
+  img.src = src;
+}
+
 // 사운드 매니저 (Assets/Sound 폴더 연결)
 const sounds = {
   bgm: new Audio('Assets/Sound/bgm3.mp3'),
@@ -86,7 +135,7 @@ let totalCreated = 0;
 let money = 0;
 let gameTime = 210;
 let baseCookingDelay = 4.5;
-let isGameOver = false;
+let isGameOver = true; // startGame()에서 false로 바뀐다
 
 // 3x3 슬롯 배열
 const slots = Array.from({ length: 9 }, (_, i) => ({
@@ -100,6 +149,11 @@ const slots = Array.from({ length: 9 }, (_, i) => ({
 
 let currentCustomer = null;
 let customerTimer = 0;
+let spawnTimeout = null;
+function scheduleCustomer(ms) {
+  clearTimeout(spawnTimeout);
+  spawnTimeout = setTimeout(spawnCustomer, ms);
+}
 const customerMaxWait = 35;
 
 function selectTool(id) {
@@ -110,40 +164,40 @@ function selectTool(id) {
     const img = document.getElementById(t === 1 ? 'tool-img-kettle' : t === 2 ? 'tool-img-redbean' : 'tool-img-stick');
     if (t === id) {
       el.classList.add('active');
-      img.src = TOOL_IMAGES[t].active;
+      setImg(img, TOOL_IMAGES[t].active);
     } else {
       el.classList.remove('active');
-      img.src = TOOL_IMAGES[t].normal;
+      setImg(img, TOOL_IMAGES[t].normal);
     }
   }
 }
 
 function renderBoard() {
   const grid = document.getElementById('mold-grid');
-  grid.innerHTML = '';
+  if (grid.children.length !== slots.length) {
+    grid.innerHTML = '';
+    slots.forEach((_, index) => {
+      const div = document.createElement('div');
+      div.className = 'mold-slot';
+      div.id = `slot-${index}`;
+      div.onclick = () => onSlotClick(index);
+      div.innerHTML = `
+        <div class="slot-inner"><img class="mold-graphic" alt="붕어빵"></div>
+        <div class="slot-gauge-bar"><div class="slot-gauge-fill"></div></div>
+      `;
+      grid.appendChild(div);
+    });
+  }
   slots.forEach((slot, index) => {
-    const div = document.createElement('div');
-    div.className = 'mold-slot';
-    div.id = `slot-${index}`;
-    div.onclick = () => onSlotClick(index);
-
-    let imgSrc = MOLD_IMAGES[slot.state];
-    let prog = 0;
-    if (slot.state === 'COOKING_1' || slot.state === 'COOKED_1' || slot.state === 'GOOD') {
-      prog = Math.min(100, (slot.timer / slot.targetTime) * 100);
+    const div = grid.children[index];
+    div.querySelector('.slot-inner').classList.toggle('flipping', slot.isFlipping);
+    setImg(div.querySelector('.mold-graphic'), MOLD_IMAGES[slot.state]);
+    const cooking = slot.state === 'COOKING_1' || slot.state === 'COOKED_1' || slot.state === 'GOOD';
+    div.querySelector('.slot-gauge-bar').style.display = cooking ? '' : 'none';
+    if (cooking) {
+      const prog = Math.min(100, (slot.timer / slot.targetTime) * 100);
+      div.querySelector('.slot-gauge-fill').style.width = `${prog}%`;
     }
-
-    div.innerHTML = `
-      <div class="slot-inner ${slot.isFlipping ? 'flipping' : ''}">
-        <img src="${imgSrc}" class="mold-graphic" alt="붕어빵">
-      </div>
-      ${(slot.state === 'COOKING_1' || slot.state === 'COOKED_1' || slot.state === 'GOOD') ? `
-        <div class="slot-gauge-bar">
-          <div class="slot-gauge-fill" style="width: ${prog}%"></div>
-        </div>
-      ` : ''}
-    `;
-    grid.appendChild(div);
   });
 }
 
@@ -190,12 +244,14 @@ function onSlotClick(index) {
         slot.targetTime = baseCookingDelay;
       });
     } else if (slot.state === 'GOOD') {
-      if (breadBoxCount < 13) {
-        playSfx('success');
-        breadBoxCount++;
-        totalCreated++;
-        updateBreadBoxUI();
+      if (breadBoxCount >= 13) {
+        playSfx('sad');
+        return;
       }
+      playSfx('success');
+      breadBoxCount++;
+      totalCreated++;
+      updateBreadBoxUI();
       slot.state = 'EMPTY';
       slot.timer = 0;
       slot.isSecondSide = false;
@@ -213,7 +269,7 @@ function onSlotClick(index) {
 function updateBreadBoxUI() {
   document.getElementById('breadbox-badge').innerText = `${breadBoxCount}개`;
   const imgIdx = Math.min(3, breadBoxCount);
-  document.getElementById('breadbox-img').src = BOX_IMAGES[imgIdx];
+  setImg(document.getElementById('breadbox-img'), BOX_IMAGES[imgIdx]);
 }
 
 setInterval(() => {
@@ -247,6 +303,7 @@ setInterval(() => {
 }, 100);
 
 function spawnCustomer() {
+  if (isGameOver) return;
   const c = CUSTOMER_DATA[Math.floor(Math.random() * CUSTOMER_DATA.length)];
   const need = Math.floor(Math.random() * 4) + 1;
   currentCustomer = {
@@ -258,7 +315,7 @@ function spawnCustomer() {
   playSfx('bell');
 
   const avatar = document.getElementById('customer-img');
-  avatar.src = c.normal;
+  setImg(avatar, c.normal);
   avatar.style.transform = 'scale(1)';
 
   const text = c.dialogue.replace('{0}', `<span class="order-highlight">${need}개</span>`);
@@ -285,23 +342,24 @@ function handleBreadBoxClick() {
   const bubble = document.getElementById('dialogue-text');
   const avatar = document.getElementById('customer-img');
 
-  if (breadBoxCount === currentCustomer.needCount) {
+  if (breadBoxCount >= currentCustomer.needCount) {
     playSfx('good');
     const earned = currentCustomer.needCount * 1000;
     money += earned;
     totalSold += currentCustomer.needCount;
-    breadBoxCount = 0;
+    breadBoxCount -= currentCustomer.needCount;
     updateBreadBoxUI();
     document.getElementById('money-text').innerText = `${money.toLocaleString()}원`;
 
     bubble.innerHTML = '<b>와! 따끈따끈해서 최고예요! 또 올게요!</b>';
     avatar.style.transform = 'scale(1.12)';
     currentCustomer = null;
-    setTimeout(spawnCustomer, 2200);
+    updatePatienceBar();
+    scheduleCustomer(2200);
   } else {
     playSfx('sad');
-    avatar.src = currentCustomer.sad;
-    bubble.innerHTML = `<span style="color:#c62828"><b>갯수가 틀렸잖아요! 저는 <span class="order-highlight">${currentCustomer.needCount}개</span> 시켰어요!</b></span>`;
+    setImg(avatar, currentCustomer.sad);
+    bubble.innerHTML = `<span style="color:#c62828"><b>개수가 모자라요! 저는 <span class="order-highlight">${currentCustomer.needCount}개</span> 시켰어요!</b></span>`;
     avatar.style.transform = 'rotate(-8deg)';
   }
 }
@@ -316,10 +374,10 @@ setInterval(() => {
 
     const sky = document.getElementById('sky-bg');
     if (gameTime === 140) {
-      sky.style.backgroundImage = "url('Assets/Sprites/10.png')";
+      sky.style.backgroundImage = "url('Assets/Sprites/10.png')"; sky.style.backgroundColor = '#f4b673';
       baseCookingDelay = Math.max(1.8, baseCookingDelay - 0.9);
     } else if (gameTime === 70) {
-      sky.style.backgroundImage = "url('Assets/Sprites/night.png')";
+      sky.style.backgroundImage = "url('Assets/Sprites/night.png')"; sky.style.backgroundColor = '#233a66';
       baseCookingDelay = Math.max(1.8, baseCookingDelay - 0.9);
     }
   } else {
@@ -332,16 +390,18 @@ setInterval(() => {
     updatePatienceBar();
     if (customerTimer <= 0) {
       playSfx('sad');
-      document.getElementById('customer-img').src = currentCustomer.sad;
+      setImg(document.getElementById('customer-img'), currentCustomer.sad);
       document.getElementById('dialogue-text').innerHTML = '<span style="color:#777">너무 오래 기다려서 그냥 갈게요...</span>';
       currentCustomer = null;
-      setTimeout(spawnCustomer, 2500);
+      updatePatienceBar();
+      scheduleCustomer(2500);
     }
   }
 }, 1000);
 
 function endGame() {
   isGameOver = true;
+  clearTimeout(spawnTimeout);
   sounds.bgm.pause();
   playSfx('start');
   const netIncome = (totalSold * 1000) - (totalCreated * 500);
@@ -376,6 +436,8 @@ function initGame() {
   totalCreated = 0;
   money = 0;
   isGameOver = false;
+  clearTimeout(spawnTimeout);
+  document.getElementById('timer-text').innerText = '03:30';
 
   slots.forEach(s => {
     s.state = 'EMPTY';
@@ -386,7 +448,7 @@ function initGame() {
 
   updateBreadBoxUI();
   document.getElementById('money-text').innerText = '0원';
-  document.getElementById('sky-bg').style.backgroundImage = "url('Assets/Sprites/morning.png')";
+  document.getElementById('sky-bg').style.backgroundImage = "url('Assets/Sprites/morning.png')"; document.getElementById('sky-bg').style.backgroundColor = '#9fd3f2';
   selectTool(1);
   renderBoard();
   spawnCustomer();
